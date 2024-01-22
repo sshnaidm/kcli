@@ -25,6 +25,7 @@ ingress_ip:
 ctlplanes: 3
 workers: 0
 fips: false
+cpu_partitioning: false
 cluster: myopenshift
 domain: karmalabs.corp
 network_type: OVNKubernetes

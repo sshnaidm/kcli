@@ -481,6 +481,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
             'version': 'stable',
             'macosx': False,
             'fips': False,
+            'cpu_partitioning': False,
             'apps': [],
             'dualstack': False,
             'kvm_forcestack': False,
