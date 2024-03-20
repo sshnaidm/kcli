@@ -32,11 +32,10 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 import yaml
 
+
 def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print
     return os.popen(command)
-
-os.popen = log_and_popen
 
 
 def handle_parameters(parameters, paramfiles, cluster=False):
@@ -390,7 +389,7 @@ def delete_vm(args):
                         kubetype = installparam.get('kubetype', 'generic')
                         binary = 'oc' if kubetype == 'openshift' else 'kubectl'
                         nodescmd = f'{binary} get node -o name'
-                        nodes = [n.strip().replace('node/', '') for n in os.popen(nodescmd).readlines()]
+                        nodes = [n.strip().replace('node/', '') for n in log_and_popen(nodescmd).readlines()]
                         for node in nodes:
                             if node.split('.')[0] == name:
                                 pprint(f"Deleting node {node} from your {kubetype} cluster")

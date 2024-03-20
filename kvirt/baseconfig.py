@@ -25,11 +25,10 @@ from subprocess import call
 from tempfile import TemporaryDirectory
 from time import sleep
 
+
 def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print
     return os.popen(command)
-
-os.popen = log_and_popen
 
 
 def other_client(profile, clients):
@@ -536,7 +535,7 @@ class Kbaseconfig:
                 repos[d] = None
                 if os.path.exists(f"{plansdir}/{d}/.git/config") and which('git') is not None:
                     gitcmd = f"git config -f {plansdir}/{d}/.git/config  --get remote.origin.url"
-                    giturl = os.popen(gitcmd).read().strip()
+                    giturl = log_and_popen(gitcmd).read().strip()
                     repos[d] = giturl
         return repos
 
@@ -1081,12 +1080,12 @@ class Kbaseconfig:
             header = 'subscription.operators.coreos.com/'
             results = []
             manifestscmd = "oc get subscriptions.operators.coreos.com -A -o name"
-            manifestsdata = os.popen(manifestscmd).read().split('\n')
+            manifestsdata = log_and_popen(manifestscmd).read().split('\n')
         else:
             header = 'packagemanifest.packages.operators.coreos.com/'
             results = ['autolabeller', 'users', 'metal3', 'nfs']
             manifestscmd = "oc get packagemanifest -n openshift-marketplace -o name"
-            manifestsdata = os.popen(manifestscmd).read().split('\n')
+            manifestsdata = log_and_popen(manifestscmd).read().split('\n')
         results.extend([entry.replace(header, '') for entry in manifestsdata if entry != ''])
         return sorted(results)
 
@@ -1640,18 +1639,18 @@ class Kbaseconfig:
         if openshift:
             nodes_command = f'KUBECONFIG={kubeconfig} oc get nodes --no-headers=true -o wide'
             try:
-                version = os.popen(f'KUBECONFIG={kubeconfig} oc get clusterversion --no-headers').read().strip()
+                version = log_and_popen(f'KUBECONFIG={kubeconfig} oc get clusterversion --no-headers').read().strip()
             except:
                 version = 'N/A'
         else:
             nodes_command = f'KUBECONFIG={kubeconfig} kubectl get nodes --no-headers=true -o wide'
             server_command = f'KUBECONFIG={kubeconfig} kubectl version -o yaml'
             try:
-                version = yaml.safe_load(os.popen(server_command).read())['serverVersion']['gitVersion']
+                version = yaml.safe_load(log_and_popen(server_command).read())['serverVersion']['gitVersion']
             except:
                 version = 'N/A'
         try:
-            for entry in os.popen(nodes_command).readlines():
+            for entry in log_and_popen(nodes_command).readlines():
                 node = [column.strip() for column in entry.split()[0:6]]
                 nodes.append(node)
         except:

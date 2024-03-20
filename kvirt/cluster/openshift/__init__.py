@@ -23,11 +23,10 @@ from time import sleep
 from urllib.request import urlopen, Request
 from yaml import safe_dump, safe_load
 
+
 def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print
     return os.popen(command)
-
-os.popen = log_and_popen
 
 
 virt_providers = ['kvm', 'kubevirt', 'ovirt', 'openstack', 'vsphere', 'proxmox']
@@ -139,7 +138,7 @@ def update_disconnected_registry(config, plandir, cluster, data):
         pprint(f"Trying to gather registry ca cert from {disconnected_url}")
         cacmd = f"openssl s_client -showcerts -connect {disconnected_url} </dev/null 2>/dev/null|"
         cacmd += "openssl x509 -outform PEM"
-        data['ca'] = os.popen(cacmd).read()
+        data['ca'] = log_and_popen(cacmd).read()
     with open(f'{clusterdir}/ca.crt', 'w') as f:
         f.write(data['ca'])
     call(f'sudo cp {clusterdir}/ca.crt /etc/pki/ca-trust/source/anchors ; sudo update-ca-trust extract',
@@ -270,7 +269,7 @@ def update_openshift_etc_hosts(cluster, domain, host_ip, ingress_ip=None):
 
 
 def get_installer_version():
-    installer_version = os.popen('openshift-install version').readlines()[0].split(" ")[1].strip()
+    installer_version = log_and_popen('openshift-install version').readlines()[0].split(" ")[1].strip()
     if installer_version.startswith('v'):
         installer_version = installer_version[1:]
     return installer_version
@@ -286,7 +285,7 @@ def offline_image(version='stable', tag='4.15', pull_secret='openshift_pull.json
             nightly_url = f"https://amd64.ocp.releases.ci.openshift.org/api/v1/releasestream/{tag}.0-0.nightly/latest"
             tag = json.loads(urlopen(nightly_url).read())['name']
         cmd = f"oc adm release info registry.ci.openshift.org/ocp/release:{tag} -a {pull_secret}"
-        for line in os.popen(cmd).readlines():
+        for line in log_and_popen(cmd).readlines():
             if 'Pull From: ' in str(line):
                 offline = line.replace('Pull From: ', '').strip()
                 break
@@ -313,7 +312,7 @@ def same_release_images(version='stable', tag='4.15', pull_secret='openshift_pul
     if not os.path.exists(f'{path}/openshift-install'):
         return False
     try:
-        existing = os.popen(f'{path}/openshift-install version').readlines()[2].split(" ")[2].strip()
+        existing = log_and_popen(f'{path}/openshift-install version').readlines()[2].split(" ")[2].strip()
     except:
         return False
     if os.path.abspath(path) != os.getcwd() and not existing.startswith('quay.io/openshift-release-dev/ocp-release')\
@@ -334,7 +333,7 @@ def get_installer_minor(installer_version):
 
 
 def get_release_image():
-    release_image = os.popen('openshift-install version').readlines()[2].split(" ")[2].strip()
+    release_image = log_and_popen('openshift-install version').readlines()[2].split(" ")[2].strip()
     return release_image
 
 
@@ -520,7 +519,7 @@ def handle_baremetal_iso(config, plandir, cluster, overrides, baremetal_hosts=[]
         pprint("Creating httpd deployment to host iso for baremetal workers")
         timeout = 0
         while True:
-            if os.popen('oc -n default get pod -l app=httpd-kcli -o name').read() != "":
+            if log_and_popen('oc -n default get pod -l app=httpd-kcli -o name').read() != "":
                 break
             if timeout > 60:
                 error("Timeout waiting for httpd deployment to be up")
@@ -530,10 +529,10 @@ def handle_baremetal_iso(config, plandir, cluster, overrides, baremetal_hosts=[]
             timeout += 5
             sleep(5)
         svcip_cmd = 'oc get node -o yaml'
-        svcip = safe_load(os.popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
+        svcip = safe_load(log_and_popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
         svcport_cmd = 'oc get svc -n default httpd-kcli-svc -o yaml'
-        svcport = safe_load(os.popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
-        podname = os.popen('oc -n default get pod -l app=httpd-kcli -o name').read().split('/')[1].strip()
+        svcport = safe_load(log_and_popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
+        podname = log_and_popen('oc -n default get pod -l app=httpd-kcli -o name').read().split('/')[1].strip()
         try:
             call(f"oc wait -n default --for=condition=Ready pod/{podname}", shell=True)
         except Exception as e:
@@ -557,13 +556,13 @@ def handle_baremetal_iso_sno(config, plandir, cluster, data, iso_pool=None):
         call(f'sudo cp {iso_pool_path}/{cluster}-*.iso {baremetal_web_dir}', shell=True)
         if baremetal_web_dir == '/var/www/html':
             call(f"sudo chown apache:apache {baremetal_web_dir}/{cluster}-*.iso", shell=True)
-            if which('getenforce') is not None and os.popen('getenforce').read().strip() == 'Enforcing':
+            if which('getenforce') is not None and log_and_popen('getenforce').read().strip() == 'Enforcing':
                 call(f"sudo restorecon -Frvv {baremetal_web_dir}/{cluster}-*.iso", shell=True)
     else:
         call(f"sudo chmod a+r {iso_pool_path}/{cluster}-*.iso", shell=True)
-    nic = os.popen('ip r | grep default | cut -d" " -f5 | head -1').read().strip()
+    nic = log_and_popen('ip r | grep default | cut -d" " -f5 | head -1').read().strip()
     ip_cmd = f"ip -o addr show {nic} | awk '{{print $4}}' | cut -d '/' -f 1 | head -1"
-    host_ip = os.popen(ip_cmd).read().strip()
+    host_ip = log_and_popen(ip_cmd).read().strip()
     if baremetal_web_port != 80:
         host_ip += f":{baremetal_web_port}"
     iso_name = f"{cluster}-sno.iso"
@@ -668,9 +667,9 @@ def scale(config, plandir, cluster, overrides):
             iso_url = handle_baremetal_iso(config, plandir, cluster, data, baremetal_hosts, iso_pool)
         else:
             svcip_cmd = 'oc get node -o yaml'
-            svcip = safe_load(os.popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
+            svcip = safe_load(log_and_popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
             svcport_cmd = 'oc get svc -n default httpd-kcli-svc -o yaml'
-            svcport = safe_load(os.popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
+            svcport = safe_load(log_and_popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
             iso_url = f'http://{svcip}:{svcport}/{cluster}-worker.iso'
         if 'secureboot' in overrides or [h for h in baremetal_hosts if 'secureboot' in h or 'bmc_secureboot' in h]:
             result = update_baremetal_hosts(baremetal_hosts, overrides=overrides, debug=config.debug)
@@ -990,9 +989,9 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
             pprint(f"Trying to gather registry ca cert from {disconnected_url}")
             cacmd = f"openssl s_client -showcerts -connect {disconnected_url} </dev/null 2>/dev/null|"
             cacmd += "openssl x509 -outform PEM"
-            data['ca'] = os.popen(cacmd).read()
+            data['ca'] = log_and_popen(cacmd).read()
     INSTALLER_VERSION = get_installer_version()
-    COMMIT_ID = os.popen('openshift-install version').readlines()[1].replace('built from commit', '').strip()
+    COMMIT_ID = log_and_popen('openshift-install version').readlines()[1].replace('built from commit', '').strip()
     pprint(f"Using installer version {INSTALLER_VERSION}")
     if sno:
         pass
@@ -1098,7 +1097,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         cacmd = ssh(disconnected_vm, ip=disconnected_ip, user='root', tunnel=config.tunnel,
                     tunnelhost=config.tunnelhost, tunnelport=config.tunnelport, tunneluser=config.tunneluser,
                     insecure=True, cmd=cacmd, vmport=disconnected_vmport)
-        disconnected_ca = os.popen(cacmd).read().strip()
+        disconnected_ca = log_and_popen(cacmd).read().strip()
         if data['ca'] is not None:
             data['ca'] += f"\n{disconnected_ca}"
         else:
@@ -1107,7 +1106,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         urlcmd = ssh(disconnected_vm, ip=disconnected_ip, user='root', tunnel=config.tunnel,
                      tunnelhost=config.tunnelhost, tunnelport=config.tunnelport, tunneluser=config.tunneluser,
                      insecure=True, cmd=urlcmd, vmport=disconnected_vmport)
-        disconnected_url = os.popen(urlcmd).read().strip()
+        disconnected_url = log_and_popen(urlcmd).read().strip()
         overrides['disconnected_url'] = disconnected_url
         data['disconnected_url'] = disconnected_url
         if disconnected_user is None:
@@ -1118,7 +1117,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         versioncmd = ssh(disconnected_vm, ip=disconnected_ip, user='root', tunnel=config.tunnel,
                          tunnelhost=config.tunnelhost, tunnelport=config.tunnelport, tunneluser=config.tunneluser,
                          insecure=True, cmd=versioncmd, vmport=disconnected_vmport)
-        disconnected_version = os.popen(versioncmd).read().strip()
+        disconnected_version = log_and_popen(versioncmd).read().strip()
         if disconnected_operators or disconnected_certified_operators or disconnected_community_operators or\
            disconnected_marketplace_operators:
             source = "/root/imageContentSourcePolicy.yaml"
@@ -1698,7 +1697,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         if 'KUBECONFIG' in os.environ or 'kubeconfig' in config.ini[config.client]:
             kubeconfig = config.ini[config.client].get('kubeconfig') or os.environ['KUBECONFIG']
             hostip_cmd = f'KUBECONFIG={kubeconfig} oc get node {nodehost} -o yaml'
-            hostip = safe_load(os.popen(hostip_cmd).read())['status']['addresses'][0]['address']
+            hostip = safe_load(log_and_popen(hostip_cmd).read())['status']['addresses'][0]['address']
             update_openshift_etc_hosts(cluster, domain, hostip)
     if not async_install:
         bootstrapcommand = f'openshift-install --dir={clusterdir} --log-level={log_level} wait-for bootstrap-complete'

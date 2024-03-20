@@ -39,11 +39,10 @@ from time import sleep
 import webbrowser
 import yaml
 
+
 def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print
     return os.popen(command)
-
-os.popen = log_and_popen
 
 
 cloudplatforms = ['aws', 'azure', 'gcp', 'packet', 'ibmcloud']
@@ -2605,7 +2604,7 @@ class Kconfig(Kbaseconfig):
                                              tunnelport=config.tunnelport, tunneluser=config.tunneluser,
                                              insecure=config.insecure, cmd='id -un', vmport=vmport,
                                              identityfile=identityfile, password=False)
-                        if os.popen(testcmd).read().strip() != user:
+                        if log_and_popen(testcmd).read().strip() != user:
                             warning("Gathered ip not functional yet...")
                             ip = None
             pprint("Waiting for vm to be accessible...")
@@ -2621,7 +2620,7 @@ class Kconfig(Kbaseconfig):
             sshcmd = common.ssh(name, user=user, ip=ip, tunnel=config.tunnel, tunnelhost=config.tunnelhost,
                                 vmport=vmport, tunnelport=config.tunnelport, tunneluser=config.tunneluser,
                                 insecure=config.insecure, cmd=cmd, identityfile=identityfile, password=False)
-            output = os.popen(sshcmd).read()
+            output = log_and_popen(sshcmd).read()
             if waitcommand is not None:
                 if output != '':
                     print(output)
@@ -2658,7 +2657,7 @@ class Kconfig(Kbaseconfig):
         sshcmd = common.ssh(name, user='root', ip=ip, tunnel=self.tunnel, tunnelhost=self.tunnelhost, vmport=vmport,
                             tunnelport=self.tunnelport, tunneluser=self.tunneluser, insecure=self.insecure, cmd=cmd,
                             identityfile=identityfile, password=False)
-        os.popen(sshcmd).read()
+        log_and_popen(sshcmd).read()
 
     def threaded_create_kube(self, cluster, kubetype, kube_overrides):
         ippool = kube_overrides.get('ippool') or kube_overrides.get('confpool')
@@ -3047,7 +3046,7 @@ class Kconfig(Kbaseconfig):
             os.environ['KUBECONFIG'] = f"{clusterdir}/auth/kubeconfig"
             binary = 'oc' if which('oc') is not None else 'kubectl'
             nodescmd = f'{binary} get node -o name'
-            nodes = [n.strip().replace('node/', '') for n in os.popen(nodescmd).readlines()]
+            nodes = [n.strip().replace('node/', '') for n in log_and_popen(nodescmd).readlines()]
             for vm in self.k.list():
                 vmname = vm['name']
                 vmplan = vm.get('plan', 'kvirt')
@@ -3421,13 +3420,13 @@ class Kconfig(Kbaseconfig):
                     pathdircmd = ssh(name, ip=ip, user='root', tunnel=self.tunnel, tunnelhost=self.tunnelhost,
                                      tunnelport=self.tunnelport, tunneluser=self.tunneluser, insecure=True,
                                      cmd=pathdircmd, vmport=vmport)
-                    pathdirfiles = os.popen(pathdircmd).readlines()
+                    pathdirfiles = log_and_popen(pathdircmd).readlines()
                     if len(pathdirfiles) == 1 and 'No such file or directory' in pathdirfiles[0]:
                         createdircmd = f'mkdir -p {pathdir}'
                         createdircmd = ssh(name, ip=ip, user='root', tunnel=self.tunnel, tunnelhost=self.tunnelhost,
                                            tunnelport=self.tunnelport, tunneluser=self.tunneluser, insecure=True,
                                            cmd=createdircmd, vmport=vmport)
-                        os.popen(createdircmd)
+                        log_and_popen(createdircmd)
                         pathdirfiles = []
                     else:
                         pathdirfiles = [x.strip() for x in pathdirfiles]
@@ -3465,9 +3464,9 @@ class Kconfig(Kbaseconfig):
         selector = "!node-role.kubernetes.io/control-plane,node-role.kubernetes.io/worker"
         currentcmd = f"kubectl get node --selector='{selector}'"
         currentcmd += " | grep ' Ready'"
-        workers = len(os.popen(currentcmd).readlines())
+        workers = len(log_and_popen(currentcmd).readlines())
         pendingcmd = "kubectl get pods -A --field-selector=status.phase=Pending -o yaml"
-        pending_pods = yaml.safe_load(os.popen(pendingcmd).read())['items']
+        pending_pods = yaml.safe_load(log_and_popen(pendingcmd).read())['items']
         if len(pending_pods) > threshold:
             pprint(f"Triggering scaling up for cluster {kube} as there are {len(pending_pods)} pending pods")
             workers += 1
@@ -3477,7 +3476,7 @@ class Kconfig(Kbaseconfig):
             return result
         nodes = {}
         currentcmd = "kubectl get pod -A -o yaml"
-        allpods = yaml.safe_load(os.popen(currentcmd).read())['items']
+        allpods = yaml.safe_load(log_and_popen(currentcmd).read())['items']
         for pod in allpods:
             nodename = pod['spec']['nodeName']
             status = pod['status']['phase']
@@ -3510,7 +3509,7 @@ class Kconfig(Kbaseconfig):
             selector = "!node-role.kubernetes.io/control-plane,node-role.kubernetes.io/worker"
             currentcmd = f"kubectl get node --selector='{selector}'"
             currentcmd += " | grep ' Ready'"
-            currentnodes = os.popen(currentcmd).readlines()
+            currentnodes = log_and_popen(currentcmd).readlines()
             if len(currentnodes) != workers:
                 pprint(f"Ongoing scaling operation on cluster {kube}")
             else:

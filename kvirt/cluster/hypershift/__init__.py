@@ -20,11 +20,11 @@ from urllib.parse import urlparse
 from urllib.request import urlopen, Request
 from yaml import safe_dump, safe_load
 
+
 def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print
     return os.popen(command)
 
-os.popen = log_and_popen
 
 virt_providers = ['kvm', 'kubevirt', 'ovirt', 'openstack', 'vsphere', 'proxmox']
 cloud_providers = ['aws', 'azure', 'gcp', 'ibm']
@@ -163,10 +163,10 @@ def handle_baremetal_iso(config, plandir, cluster, data, baremetal_hosts=[]):
         httpdcmd = f"oc create -f {plandir}/httpd.yaml"
         call(httpdcmd, shell=True)
         svcip_cmd = 'oc get node -o yaml'
-        svcip = safe_load(os.popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
+        svcip = safe_load(log_and_popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
         svcport_cmd = 'oc get svc -n default httpd-kcli-svc -o yaml'
-        svcport = safe_load(os.popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
-        podname = os.popen('oc -n default get pod -l app=httpd-kcli -o name').read().split('/')[1].strip()
+        svcport = safe_load(log_and_popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
+        podname = log_and_popen('oc -n default get pod -l app=httpd-kcli -o name').read().split('/')[1].strip()
         try:
             call(f"oc wait -n default --for=condition=Ready pod/{podname}", shell=True)
         except Exception as e:
@@ -241,9 +241,9 @@ def scale(config, plandir, cluster, overrides):
                 iso_url = handle_baremetal_iso(config, plandir, cluster, data, baremetal_hosts)
             else:
                 svcip_cmd = 'oc get node -o yaml'
-                svcip = safe_load(os.popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
+                svcip = safe_load(log_and_popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
                 svcport_cmd = 'oc get svc -n default httpd-kcli-svc -o yaml'
-                svcport = safe_load(os.popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
+                svcport = safe_load(log_and_popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
                 iso_url = f'http://{svcip}:{svcport}/{cluster}-worker.iso'
             start_baremetal_hosts(baremetal_hosts, iso_url, overrides=overrides, debug=config.debug)
             worker_overrides['workers'] = workers - len(new_baremetal_hosts)
@@ -327,7 +327,7 @@ def create(config, plandir, cluster, overrides):
     if which('oc') is None:
         get_oc()
     default_sc = False
-    for sc in safe_load(os.popen('oc get sc -o yaml').read())['items']:
+    for sc in safe_load(log_and_popen('oc get sc -o yaml').read())['items']:
         if 'annotations' in sc['metadata']\
            and 'storageclass.kubernetes.io/is-default-class' in sc['metadata']['annotations']\
            and sc['metadata']['annotations']['storageclass.kubernetes.io/is-default-class'] == 'true':
@@ -341,8 +341,8 @@ def create(config, plandir, cluster, overrides):
     kubeconfig = os.path.basename(kubeconfig) if kubeconfig is not None else 'config'
     hosted_crd_cmd = 'oc get crd hostedclusters.hypershift.openshift.io -o yaml 2>/dev/null'
     assisted_crd_cmd = 'oc -n multicluster-engine get pod -l app=assisted-service -o name 2>/dev/null'
-    if safe_load(os.popen(hosted_crd_cmd).read()) is None\
-       or (assisted and safe_load(os.popen(assisted_crd_cmd).read()) is None):
+    if safe_load(log_and_popen(hosted_crd_cmd).read()) is None\
+       or (assisted and safe_load(log_and_popen(assisted_crd_cmd).read()) is None):
         warning("Hypershift not fully installed. Installing it for you")
         if data['mce'] or assisted:
             mce_assisted = assisted or data['mce_assisted']
@@ -362,14 +362,14 @@ def create(config, plandir, cluster, overrides):
             hypercmd += f" --hypershift-image {data['operator_image']}"
             call(hypercmd, shell=True)
             sleep(120)
-    if safe_load(os.popen(hosted_crd_cmd).read()) is None:
+    if safe_load(log_and_popen(hosted_crd_cmd).read()) is None:
         msg = "Couldnt install hypershift properly"
         return {'result': 'failure', 'reason': msg}
-    elif assisted and safe_load(os.popen(assisted_crd_cmd).read()) is None:
+    elif assisted and safe_load(log_and_popen(assisted_crd_cmd).read()) is None:
         msg = "Couldnt install assisted properly"
         return {'result': 'failure', 'reason': msg}
     registry = 'quay.io'
-    management_image = os.popen("oc get clusterversion version -o jsonpath='{.status.desired.image}'").read()
+    management_image = log_and_popen("oc get clusterversion version -o jsonpath='{.status.desired.image}'").read()
     prefixes = ['quay.io', 'registry.ci']
     fake_disconnected = overrides.get('fake_disconnected', False)
     if not fake_disconnected and not any(management_image.startswith(p) for p in prefixes):
@@ -381,10 +381,10 @@ def create(config, plandir, cluster, overrides):
             return {'result': 'failure', 'reason': msg}
         hypershift_info = f"oc adm release info --insecure --pullspecs -a {pull_secret} | "
         hypershift_info += "grep hypershift | awk '{print $2}' | cut -d@ -f2"
-        hypershift_tag = os.popen(hypershift_info).read().strip()
+        hypershift_tag = log_and_popen(hypershift_info).read().strip()
         mco_info = f"oc adm release info --insecure --pullspecs -a {pull_secret} | "
         mco_info += "grep machine-config-operator | awk '{print $2'} | cut -d@ -f2"
-        mco_tag = os.popen(mco_info).read().strip()
+        mco_tag = log_and_popen(mco_info).read().strip()
         disconnected_data = {'disconnected_url': disconnected_url, 'hypershift_tag': hypershift_tag, 'mco_tag': mco_tag}
         disconnectedfile = config.process_inputfile(cluster, f"{plandir}/disconnected.sh", overrides=disconnected_data)
         with open(f"{clusterdir}/disconnected.sh", 'w') as f:
@@ -392,11 +392,11 @@ def create(config, plandir, cluster, overrides):
         call(f'bash {clusterdir}/disconnected.sh', shell=True)
         os.environ['OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE'] = management_image
         cacmd = "oc -n openshift-config get cm user-ca-bundle -o jsonpath='{.data.ca-bundle\\.crt}'"
-        data['ca'] = os.popen(cacmd).read().strip()
+        data['ca'] = log_and_popen(cacmd).read().strip()
         data['operator_disconnected_image'] = f'{disconnected_url}/openshift/release@{hypershift_tag}'
     data['registry'] = registry
     data['basedir'] = '/workdir' if container_mode() else '.'
-    supported_data = safe_load(os.popen("oc get cm/supported-versions -o yaml -n hypershift").read())
+    supported_data = safe_load(log_and_popen("oc get cm/supported-versions -o yaml -n hypershift").read())
     if supported_data is not None:
         supported_data = supported_data['data']
         supported_versions = supported_versions = supported_data['supported-versions']
@@ -409,7 +409,7 @@ def create(config, plandir, cluster, overrides):
     else:
         warning(f"Couldnt verify whether {tag} is a valid tag")
     management_cmd = "oc get ingresscontroller -n openshift-ingress-operator default -o jsonpath='{.status.domain}'"
-    management_ingress_domain = os.popen(management_cmd).read()
+    management_ingress_domain = log_and_popen(management_cmd).read()
     data['management_ingress_domain'] = management_ingress_domain
     management_ingress_ip = data.get('management_ingress_ip')
     if management_ingress_ip is None:
@@ -423,11 +423,11 @@ def create(config, plandir, cluster, overrides):
     management_api_ip = data.get('management_api_ip')
     if management_api_ip is None:
         management_ips_cmd = "oc get nodes --no-headers -o jsonpath=\"{.items[*]['status.addresses'][0]['address']}\""
-        management_ips = os.popen(management_ips_cmd).read().split(' ')
+        management_ips = log_and_popen(management_ips_cmd).read().split(' ')
         if len(management_ips) == 1:
             management_api_ip = management_ips[0]
         else:
-            management_api_url = os.popen("oc whoami --show-server").read()
+            management_api_url = log_and_popen("oc whoami --show-server").read()
             management_api_domain = urlparse(management_api_url).hostname
             management_api_ip = socket.getaddrinfo(management_api_domain, 6443, proto=socket.IPPROTO_TCP)[0][4][0]
         data['management_api_ip'] = management_api_ip
@@ -511,7 +511,7 @@ def create(config, plandir, cluster, overrides):
     pprint("Creating control plane assets")
     cmcmd = f"oc create ns {namespace} -o yaml --dry-run=client | oc apply -f -"
     call(cmcmd, shell=True)
-    icsps = safe_load(os.popen('oc get imagecontentsourcepolicies -o yaml').read())['items']
+    icsps = safe_load(log_and_popen('oc get imagecontentsourcepolicies -o yaml').read())['items']
     if not fake_disconnected and icsps:
         imagecontentsources = []
         for icsp in icsps:
@@ -677,7 +677,7 @@ def create(config, plandir, cluster, overrides):
     if 'OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE' in os.environ:
         assetsdata['nodepool_image'] = os.environ['OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE']
     else:
-        nodepool_image = os.popen("openshift-install version | grep 'release image' | cut -f3 -d' '").read().strip()
+        nodepool_image = log_and_popen("openshift-install version | grep 'release image' | cut -f3 -d' '").read().strip()
         assetsdata['nodepool_image'] = nodepool_image
     if assisted:
         if assisted_vms:
@@ -802,14 +802,14 @@ def create(config, plandir, cluster, overrides):
     call(f"until oc -n {namespace} get secret {cluster}-admin-kubeconfig >/dev/null 2>&1 ; do sleep 1 ; done",
          shell=True)
     kubeconfigpath = f'{clusterdir}/auth/kubeconfig'
-    kubeconfig = os.popen(f"oc extract -n {namespace} secret/{cluster}-admin-kubeconfig --to=-").read()
+    kubeconfig = log_and_popen(f"oc extract -n {namespace} secret/{cluster}-admin-kubeconfig --to=-").read()
     with open(kubeconfigpath, 'w') as f:
         f.write(kubeconfig)
     pprint("Waiting for kubeadmin-password to be available")
     call(f"until oc -n {namespace} get secret {cluster}-kubeadmin-password >/dev/null 2>&1 ; do sleep 1 ; done",
          shell=True)
     kubeadminpath = f'{clusterdir}/auth/kubeadmin-password'
-    kubeadmin = os.popen(f"oc extract -n {namespace} secret/{cluster}-kubeadmin-password --to=-").read()
+    kubeadmin = log_and_popen(f"oc extract -n {namespace} secret/{cluster}-kubeadmin-password --to=-").read()
     with open(kubeadminpath, 'w') as f:
         f.write(kubeadmin)
     if network_type == 'Calico':

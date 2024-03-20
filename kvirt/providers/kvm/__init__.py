@@ -33,11 +33,10 @@ import time
 from uuid import UUID
 import xml.etree.ElementTree as ET
 
+
 def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print
     return os.popen(command)
-
-os.popen = log_and_popen
 
 
 LIBVIRT_CMD_NONE = 0
@@ -1676,7 +1675,7 @@ class Kvirt(object):
                     url = f"{protocol}://{host}:{localport}"
                 if web:
                     if tunnel:
-                        os.popen(consolecommand)
+                        log_and_popen(consolecommand)
                     return url
                 if os.path.exists('/Applications'):
                     if protocol == 'spice' and os.path.exists('/Applications/RemoteViewer.app'):
@@ -1691,7 +1690,7 @@ class Kvirt(object):
                     msg = f"Run the following command:\n{consolecommand}" if not self.debug else consolecommand
                     pprint(msg)
                 else:
-                    os.popen(consolecommand)
+                    log_and_popen(consolecommand)
 
     def serialconsole(self, name, web=False):
         conn = self.conn
@@ -3689,7 +3688,7 @@ class Kvirt(object):
         if self.protocol == 'ssh':
             thincommand = "ssh %s -p %s %s@%s \"%s\"" % (self.identitycommand, self.port, self.user, self.host,
                                                          thincommand)
-        results = os.popen(thincommand).read().strip()
+        results = log_and_popen(thincommand).read().strip()
         if results == '':
             return []
         return [name.strip() for name in results.split('\n')]
@@ -3705,7 +3704,7 @@ class Kvirt(object):
         if self.protocol == 'ssh':
             sizecommand = "ssh %s -p %s %s@%s \"%s\"" % (self.identitycommand, self.port, self.user, self.host,
                                                          sizecommand)
-        size = os.popen(sizecommand).read().strip()
+        size = log_and_popen(sizecommand).read().strip()
         virtualsize = json.loads(size)['virtual-size']
         if pooltype == 'logical':
             if thinpool is not None:

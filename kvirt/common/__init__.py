@@ -31,11 +31,10 @@ from tempfile import TemporaryDirectory
 from time import sleep
 import yaml
 
+
 def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print
     return os.popen(command)
-
-os.popen = log_and_popen
 
 
 class NoAliasDumper(yaml.SafeDumper):
@@ -323,7 +322,7 @@ def cloudinit(name, keys=[], cmds=[], nets=[], gateway=None, dns=None, domain=No
             userdata += "ssh_authorized_keys:\n"
             validkeyfound = True
         elif which('ssh-add') is not None:
-            agent_keys = os.popen('ssh-add -L 2>/dev/null | grep ssh | head -1').readlines()
+            agent_keys = log_and_popen('ssh-add -L 2>/dev/null | grep ssh | head -1').readlines()
             if agent_keys:
                 keys = agent_keys
                 validkeyfound = True
@@ -1079,7 +1078,7 @@ def ignition(name, keys=[], cmds=[], nets=[], gateway=None, dns=None, domain=Non
                 with open(publickeyfile, 'r') as ssh:
                     publickeys.append(ssh.read().strip())
         if not publickeys and which('ssh-add') is not None:
-            agent_keys = os.popen('ssh-add -L 2>/dev/null | head -1').readlines()
+            agent_keys = log_and_popen('ssh-add -L 2>/dev/null | head -1').readlines()
             if agent_keys:
                 publickeys = agent_keys
         if not publickeys:
@@ -1305,7 +1304,7 @@ def get_commit_rhcos(commitid, _type='kvm', region=None):
 def get_installer_rhcos(_type='kvm', region=None, arch='x86_64'):
     keys = {'ovirt': 'openstack', 'kubevirt': 'openstack', 'kvm': 'qemu', 'vsphere': 'vmware', 'ibm': 'ibmcloud'}
     key = keys.get(_type, _type)
-    INSTALLER_COREOS = os.popen('openshift-install coreos print-stream-json 2>/dev/null').read()
+    INSTALLER_COREOS = log_and_popen('openshift-install coreos print-stream-json 2>/dev/null').read()
     data = json.loads(INSTALLER_COREOS)
     if _type == 'aws':
         return data['architectures'][arch]['images']['aws']['regions'][region]['image']
@@ -1330,7 +1329,7 @@ def get_commit_rhcos_metal(commitid):
 
 
 def get_installer_rhcos_metal():
-    INSTALLER_COREOS = os.popen('openshift-install coreos print-stream-json 2>/dev/null').read()
+    INSTALLER_COREOS = log_and_popen('openshift-install coreos print-stream-json 2>/dev/null').read()
     data = json.loads(INSTALLER_COREOS)
     base = data['architectures']['x86_64']['artifacts']['metal']['formats']['pxe']
     kernel = base['kernel']['location']
@@ -1344,13 +1343,13 @@ def get_installer_iso():
     if which('openshift-install') is None:
         error("Couldnt find openshift-install in your path")
         sys.exit(0)
-    INSTALLER_COREOS = os.popen('openshift-install coreos print-stream-json 2>/dev/null').read()
+    INSTALLER_COREOS = log_and_popen('openshift-install coreos print-stream-json 2>/dev/null').read()
     data = json.loads(INSTALLER_COREOS)
     return data['architectures']['x86_64']['artifacts']['metal']['formats']['iso']['disk']['location']
 
 
 def get_installer_iso_sha():
-    INSTALLER_COREOS = os.popen('openshift-install coreos print-stream-json 2>/dev/null').read()
+    INSTALLER_COREOS = log_and_popen('openshift-install coreos print-stream-json 2>/dev/null').read()
     data = json.loads(INSTALLER_COREOS)
     return data['architectures']['x86_64']['artifacts']['metal']['formats']['iso']['disk']['sha256']
 
@@ -2041,7 +2040,7 @@ def olm_app(package):
     target_namespace = None
     channels = []
     manifestscmd = f"oc get packagemanifest -n openshift-marketplace {package} -o yaml 2>/dev/null"
-    data = yaml.safe_load(os.popen(manifestscmd).read())
+    data = yaml.safe_load(log_and_popen(manifestscmd).read())
     if data is not None:
         name = data['metadata']['name']
         target_namespace = name.split('-operator')[0]
@@ -2137,9 +2136,9 @@ def compare_git_versions(commit1, commit2):
         cmd = f"git clone -q https://github.com/karmab/kcli {tmpdir}"
         call(cmd, shell=True)
         os.chdir(tmpdir)
-        timestamp1 = os.popen(f"git show -s --format=%ct {commit1}").read().strip()
+        timestamp1 = log_and_popen(f"git show -s --format=%ct {commit1}").read().strip()
         date1 = datetime.fromtimestamp(int(timestamp1))
-        timestamp2 = os.popen(f"git show -s --format=%ct {commit2}").read().strip()
+        timestamp2 = log_and_popen(f"git show -s --format=%ct {commit2}").read().strip()
         date2 = datetime.fromtimestamp(int(timestamp2))
         os.chdir(mycwd)
     return True if date1 < date2 else False
