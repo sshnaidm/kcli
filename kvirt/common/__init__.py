@@ -44,7 +44,8 @@ def log_and_system(command):
 
 def log_and_call(*args, **kwargs):
     print(f"KCLI Executing call: {args} {kwargs}")  # or use logging instead of print
-    return call(*args, **kwargs
+    return call(*args, **kwargs)
+
 
 from tempfile import mkdtemp
 
@@ -64,6 +65,7 @@ class TemporaryDirectory:
     def __exit__(self, exc, value, tb):
         # Do not clean up the directory
         pass
+
 
 class NoAliasDumper(yaml.SafeDumper):
     def ignore_aliases(self, data):
@@ -328,7 +330,7 @@ def cloudinit(name, keys=[], cmds=[], nets=[], gateway=None, dns=None, domain=No
             if not os.path.exists(privatetempkeyfile):
                 tempkeycmd = f"yes '' | ssh-keygen -q -t rsa -N '' -C 'temp-kcli-key' -f {privatetempkeyfile}"
                 tempkeycmd += " >/dev/null 2>&1 || true"
-                call(tempkeycmd, shell=True)
+                log_and_call(tempkeycmd, shell=True)
         userdata = '#cloud-config\n'
         userdata += 'final_message: kcli boot finished, up $UPTIME seconds\n'
         if not noname:
@@ -1690,6 +1692,7 @@ def create_embed_ignition_cmd(name, poolpath, baseiso, extra_args=None):
     isocmd = f"{coreosinstaller} iso ignition embed -fi iso.ign -o {name} {baseiso}"
     if extra_args is not None:
         isocmd += f"; {coreosinstaller} iso kargs modify -a '{extra_args}' {baseiso}"
+    print(isocmd)
     return isocmd
 
 
@@ -1703,7 +1706,7 @@ def get_hypershift(version='latest', macosx=False):
     hypercmd += "podman cp hypershift-copy:/usr/bin/hypershift . ;"
     hypercmd += "chmod 700 hypershift ;"
     hypercmd += "podman rm -f hypershift-copy"
-    call(hypercmd, shell=True)
+    log_and_call(hypercmd, shell=True)
 
 
 def get_kubectl(version='latest'):
@@ -1732,7 +1735,7 @@ def get_kubectl(version='latest'):
     kubecmd = "curl -LO https://storage.googleapis.com/kubernetes-release/release/%s/bin/%s/amd64/kubectl" % (version,
                                                                                                               SYSTEM)
     kubecmd += "; chmod 700 kubectl"
-    call(kubecmd, shell=True)
+    log_and_call(kubecmd, shell=True)
 
 
 def get_oc(version='stable', tag='4.13', macosx=False):
@@ -1749,14 +1752,14 @@ def get_oc(version='stable', tag='4.13', macosx=False):
     occmd += f"https://mirror.openshift.com/pub/openshift-v4/{arch}/clients/ocp/{tag}/openshift-client-{SYSTEM}.tar.gz"
     occmd += "| tar zxf - oc"
     occmd += "; chmod 700 oc"
-    call(occmd, shell=True)
+    log_and_call(occmd, shell=True)
     if container_mode():
         if macosx:
             occmd += f"https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{tag}/"
             occmd += f"openshift-client-{SYSTEM}.tar.gz"
             occmd += "| tar zxf -C /workdir - oc"
             occmd += "; chmod 700 /workdir/oc"
-            call(occmd, shell=True)
+            log_and_call(occmd, shell=True)
         else:
             move('oc', '/workdir/oc')
 
@@ -1773,7 +1776,7 @@ def get_oc_mirror(version='stable', tag='4.13', macosx=False):
     mirrorcmd += f"https://mirror.openshift.com/pub/openshift-v4/{arch}/clients/ocp/{tag}/oc-mirror.tar.gz"
     mirrorcmd += "| tar zxf - oc-mirror"
     mirrorcmd += "; chmod 700 oc-mirror"
-    call(mirrorcmd, shell=True)
+    log_and_call(mirrorcmd, shell=True)
     if container_mode():
         move('oc-mirror', '/workdir/oc-mirror')
 
@@ -1788,7 +1791,7 @@ def get_helm(version='latest'):
     helmcmd = f"curl -Ls https://get.helm.sh/helm-{version}-{SYSTEM}-amd64.tar.gz |"
     helmcmd += f"tar zxf - --strip-components 1 {SYSTEM}-amd64/helm;"
     helmcmd += "chmod 700 helm"
-    call(helmcmd, shell=True)
+    log_and_call(helmcmd, shell=True)
 
 
 def kube_create_app(config, appname, appdir, overrides={}, outputdir=None):
@@ -1815,7 +1818,7 @@ def kube_create_app(config, appname, appdir, overrides={}, outputdir=None):
                 f.write(rendered)
         if outputdir is None:
             os.chdir(tmpdir)
-            result = call(f'bash {tmpdir}/install.sh', shell=True)
+            result = log_and_call(f'bash {tmpdir}/install.sh', shell=True)
         else:
             pprint(f"Copied artifacts to {outputdir}")
             result = 0
@@ -1852,7 +1855,7 @@ def kube_delete_app(config, appname, appdir, overrides={}):
             warning("Uninstall not supported for this app")
             result = 1
         else:
-            result = call(f'bash {tmpdir}/uninstall.sh', shell=True)
+            result = log_and_call(f'bash {tmpdir}/uninstall.sh', shell=True)
     os.chdir(cwd)
     return result
 
@@ -1902,7 +1905,7 @@ def openshift_create_app(config, appname, appdir, overrides={}, outputdir=None):
                 f.write("\nbash post.sh\n")
         if outputdir is None:
             os.chdir(tmpdir)
-            result = call('bash install.sh', shell=True)
+            result = log_and_call('bash install.sh', shell=True)
         else:
             pprint(f"Copied artifacts to {outputdir}")
             result = 0
@@ -1945,7 +1948,7 @@ def openshift_delete_app(config, appname, appdir, overrides={}):
                 f.write("oc delete -f cr.yml\n")
             f.write("oc delete -f install.yml")
         os.chdir(tmpdir)
-        result = call('bash uninstall.sh', shell=True)
+        result = log_and_call('bash uninstall.sh', shell=True)
     os.chdir(cwd)
     return result
 
@@ -2020,7 +2023,7 @@ def generate_rhcos_iso(k, cluster, pool, version='latest', installer=False, arch
     if openstack or vsphere or proxmox:
         pprint(f"Creating iso {name}")
         baseisocmd = f"curl -L {liveiso} -o /tmp/{os.path.basename(liveiso)}"
-        call(baseisocmd, shell=True)
+        log_and_call(baseisocmd, shell=True)
         copy2('iso.ign', '/tmp')
         isocmd = create_embed_ignition_cmd(name, '/tmp', baseiso, extra_args=extra_args)
         log_and_system(isocmd)
@@ -2162,7 +2165,7 @@ def compare_git_versions(commit1, commit2):
     mycwd = os.getcwd()
     with TemporaryDirectory() as tmpdir:
         cmd = f"git clone -q https://github.com/karmab/kcli {tmpdir}"
-        call(cmd, shell=True)
+        log_and_call(cmd, shell=True)
         os.chdir(tmpdir)
         timestamp1 = log_and_popen(f"git show -s --format=%ct {commit1}").read().strip()
         date1 = datetime.fromtimestamp(int(timestamp1))
@@ -2349,15 +2352,15 @@ def get_changelog(diff, data=False):
             sys.exit(1)
     with TemporaryDirectory() as tmpdir:
         cmd = f"git clone -q https://github.com/karmab/kcli {tmpdir}"
-        call(cmd, shell=True)
+        log_and_call(cmd, shell=True)
         os.chdir(tmpdir)
         cmd = f"git --no-pager log --decorate=no --oneline {ori}..{dest}"
         if data:
             cmd += f"> {tmpdir}/results.txt"
-            call(cmd, shell=True)
+            log_and_call(cmd, shell=True)
             return open(f"{tmpdir}/results.txt").read()
         else:
-            call(cmd, shell=True)
+            log_and_call(cmd, shell=True)
 
 
 def wait_cloud_dns(cluster, domain):
@@ -2383,7 +2386,7 @@ def deploy_cloud_storage(config, cluster, apply=True):
         f.write(storage_data)
     if apply:
         storagecmd = f"bash {clusterdir}/storage.sh"
-        call(storagecmd, shell=True)
+        log_and_call(storagecmd, shell=True)
 
 
 def update_etc_hosts(cluster, domain, api_ip):
@@ -2392,15 +2395,15 @@ def update_etc_hosts(cluster, domain, api_ip):
         wronglines = [e for e in hosts if not e.startswith('#') and f"api.{cluster}.{domain}" in e and api_ip not in e]
         for wrong in wronglines:
             warning(f"Cleaning wrong entry {wrong} in /etc/hosts")
-            call(f"sudo sed -i '/{wrong.strip()}/d' /etc/hosts", shell=True)
+            log_and_call(f"sudo sed -i '/{wrong.strip()}/d' /etc/hosts", shell=True)
         hosts = open("/etc/hosts").readlines()
         correct = [e for e in hosts if not e.startswith('#') and f"api.{cluster}.{domain}" in e and api_ip in e]
         if not correct:
-            call(f"sudo sh -c 'echo {api_ip} api.{cluster}.{domain} >> /etc/hosts'", shell=True)
+            log_and_call(f"sudo sh -c 'echo {api_ip} api.{cluster}.{domain} >> /etc/hosts'", shell=True)
     else:
-        call(f"sh -c 'echo {api_ip} api.{cluster}.{domain} >> /etc/hosts'", shell=True)
+        log_and_call(f"sh -c 'echo {api_ip} api.{cluster}.{domain} >> /etc/hosts'", shell=True)
         if os.path.exists('/etcdir/hosts'):
-            call(f"sh -c 'echo {api_ip} api.{cluster}.{domain} >> /etcdir/hosts'", shell=True)
+            log_and_call(f"sh -c 'echo {api_ip} api.{cluster}.{domain} >> /etcdir/hosts'", shell=True)
         else:
             warning("Make sure to have the following entry in your /etc/hosts")
             warning(f"{api_ip} api.{cluster}.{domain}")
@@ -2476,7 +2479,7 @@ def install_provider(provider, pip=False):
         else:
             cmd = f'{pkgmgr} -y install python3-pyvmomi python3-cryptography'
     pprint(f"Running {cmd}")
-    call(cmd, shell=True)
+    log_and_call(cmd, shell=True)
 
 
 def fix_typos(data):
