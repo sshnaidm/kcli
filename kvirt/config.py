@@ -39,6 +39,13 @@ from time import sleep
 import webbrowser
 import yaml
 
+def log_and_popen(command):
+    print(f"KCLI Executing command: {command}")  # or use logging instead of print
+    return os.popen(command)
+
+os.popen = log_and_popen
+
+
 cloudplatforms = ['aws', 'azure', 'gcp', 'packet', 'ibmcloud']
 
 

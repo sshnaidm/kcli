@@ -23,6 +23,12 @@ from time import sleep
 from urllib.request import urlopen, Request
 from yaml import safe_dump, safe_load
 
+def log_and_popen(command):
+    print(f"KCLI Executing command: {command}")  # or use logging instead of print
+    return os.popen(command)
+
+os.popen = log_and_popen
+
 
 virt_providers = ['kvm', 'kubevirt', 'ovirt', 'openstack', 'vsphere', 'proxmox']
 cloud_providers = ['aws', 'azure', 'gcp', 'ibm']

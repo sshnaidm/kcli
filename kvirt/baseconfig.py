@@ -25,6 +25,12 @@ from subprocess import call
 from tempfile import TemporaryDirectory
 from time import sleep
 
+def log_and_popen(command):
+    print(f"KCLI Executing command: {command}")  # or use logging instead of print
+    return os.popen(command)
+
+os.popen = log_and_popen
+
 
 def other_client(profile, clients):
     for cli in clients:

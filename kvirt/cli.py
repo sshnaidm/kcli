@@ -32,6 +32,12 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 import yaml
 
+def log_and_popen(command):
+    print(f"KCLI Executing command: {command}")  # or use logging instead of print
+    return os.popen(command)
+
+os.popen = log_and_popen
+
 
 def handle_parameters(parameters, paramfiles, cluster=False):
     if paramfiles is None:

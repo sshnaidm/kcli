@@ -33,6 +33,12 @@ import time
 from uuid import UUID
 import xml.etree.ElementTree as ET
 
+def log_and_popen(command):
+    print(f"KCLI Executing command: {command}")  # or use logging instead of print
+    return os.popen(command)
+
+os.popen = log_and_popen
+
 
 LIBVIRT_CMD_NONE = 0
 LIBVIRT_CMD_MODIFY = 1
