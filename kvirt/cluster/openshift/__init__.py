@@ -18,11 +18,30 @@ from socket import gethostbyname
 from string import ascii_letters, digits
 from subprocess import call
 import sys
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory as TempDir
 from time import sleep
 from urllib.request import urlopen, Request
 from yaml import safe_dump, safe_load
 
+
+from tempfile import mkdtemp
+
+class TemporaryDirectory:
+
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.name = mkdtemp(suffix, prefix, dir)
+        # Do not set up a finalizer
+
+    def __repr__(self):
+        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+
+    def __enter__(self):
+        print(f"KCLI debug - directory {self.name}")
+        return self.name
+
+    def __exit__(self, exc, value, tb):
+        # Do not clean up the directory
+        pass
 
 def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print

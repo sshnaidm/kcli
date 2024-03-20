@@ -13,7 +13,7 @@ import socket
 import sys
 from shutil import which, copy2
 from subprocess import call
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+from tempfile import NamedTemporaryFile
 from time import sleep
 from uuid import UUID
 from urllib.parse import urlparse
@@ -25,6 +25,25 @@ def log_and_popen(command):
     print(f"KCLI Executing command: {command}")  # or use logging instead of print
     return os.popen(command)
 
+
+from tempfile import mkdtemp
+
+class TemporaryDirectory:
+
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.name = mkdtemp(suffix, prefix, dir)
+        # Do not set up a finalizer
+
+    def __repr__(self):
+        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+
+    def __enter__(self):
+        print(f"KCLI debug - directory {self.name}")
+        return self.name
+
+    def __exit__(self, exc, value, tb):
+        # Do not clean up the directory
+        pass
 
 virt_providers = ['kvm', 'kubevirt', 'ovirt', 'openstack', 'vsphere', 'proxmox']
 cloud_providers = ['aws', 'azure', 'gcp', 'ibm']

@@ -27,7 +27,7 @@ import os
 import sys
 from subprocess import call
 from shutil import copy2, move, which
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory as TempDir
 from time import sleep
 import yaml
 
@@ -42,6 +42,28 @@ def log_and_system(command):
     return os.system(command)
 
 
+def log_and_call(*args, **kwargs):
+    print(f"KCLI Executing call: {args} {kwargs}")  # or use logging instead of print
+    return call(*args, **kwargs
+
+from tempfile import mkdtemp
+
+class TemporaryDirectory:
+
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.name = mkdtemp(suffix, prefix, dir)
+        # Do not set up a finalizer
+
+    def __repr__(self):
+        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+
+    def __enter__(self):
+        print(f"KCLI debug - directory {self.name}")
+        return self.name
+
+    def __exit__(self, exc, value, tb):
+        # Do not clean up the directory
+        pass
 
 class NoAliasDumper(yaml.SafeDumper):
     def ignore_aliases(self, data):

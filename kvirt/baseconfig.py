@@ -22,7 +22,7 @@ from jinja2.exceptions import TemplateSyntaxError, TemplateError, TemplateNotFou
 import re
 import sys
 from subprocess import call
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory as TempDir
 from time import sleep
 
 
@@ -34,6 +34,26 @@ def log_and_popen(command):
 def log_and_system(command):
     print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
     return os.system(command)
+
+
+from tempfile import mkdtemp
+
+class TemporaryDirectory:
+
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.name = mkdtemp(suffix, prefix, dir)
+        # Do not set up a finalizer
+
+    def __repr__(self):
+        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+
+    def __enter__(self):
+        print(f"KCLI debug - directory {self.name}")
+        return self.name
+
+    def __exit__(self, exc, value, tb):
+        # Do not clean up the directory
+        pass
 
 
 def other_client(profile, clients):

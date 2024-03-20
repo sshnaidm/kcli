@@ -33,7 +33,7 @@ import socket
 from shutil import rmtree, which
 import sys
 from subprocess import call, run, PIPE, STDOUT
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory as TempDir
 import threading
 from time import sleep
 import webbrowser
@@ -48,6 +48,26 @@ def log_and_popen(command):
 def log_and_system(command):
     print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
     return os.system(command)
+
+
+from tempfile import mkdtemp
+
+class TemporaryDirectory:
+
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.name = mkdtemp(suffix, prefix, dir)
+        # Do not set up a finalizer
+
+    def __repr__(self):
+        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+
+    def __enter__(self):
+        print(f"KCLI debug - directory {self.name}")
+        return self.name
+
+    def __exit__(self, exc, value, tb):
+        # Do not clean up the directory
+        pass
 
 
 cloudplatforms = ['aws', 'azure', 'gcp', 'packet', 'ibmcloud']

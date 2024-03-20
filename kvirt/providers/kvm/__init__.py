@@ -28,7 +28,7 @@ import re
 import string
 import sys
 from shutil import which
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory as TempDir
 import time
 from uuid import UUID
 import xml.etree.ElementTree as ET
@@ -44,6 +44,24 @@ def log_and_system(command):
     return os.system(command)
 
 
+from tempfile import mkdtemp
+
+class TemporaryDirectory:
+
+    def __init__(self, suffix=None, prefix=None, dir=None):
+        self.name = mkdtemp(suffix, prefix, dir)
+        # Do not set up a finalizer
+
+    def __repr__(self):
+        return "<{} {!r}>".format(self.__class__.__name__, self.name)
+
+    def __enter__(self):
+        print(f"KCLI debug - directory {self.name}")
+        return self.name
+
+    def __exit__(self, exc, value, tb):
+        # Do not clean up the directory
+        pass
 
 LIBVIRT_CMD_NONE = 0
 LIBVIRT_CMD_MODIFY = 1
