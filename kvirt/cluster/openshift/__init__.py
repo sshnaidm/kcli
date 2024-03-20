@@ -53,6 +53,11 @@ def log_and_system(command):
     print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
     return os.system(command)
 
+def log_and_call(*args, **kwargs):
+    print(f"KCLI Executing call: \"{' '.join(args)}\" with {', '.join(['%s=%s' % (key, value) for key, value in kwargs.items()])}")  # or use logging instead of print
+    return call(*args, **kwargs)
+
+
 
 virt_providers = ['kvm', 'kubevirt', 'ovirt', 'openstack', 'vsphere', 'proxmox']
 cloud_providers = ['aws', 'azure', 'gcp', 'ibm']
@@ -166,14 +171,14 @@ def update_disconnected_registry(config, plandir, cluster, data):
         data['ca'] = log_and_popen(cacmd).read()
     with open(f'{clusterdir}/ca.crt', 'w') as f:
         f.write(data['ca'])
-    call(f'sudo cp {clusterdir}/ca.crt /etc/pki/ca-trust/source/anchors ; sudo update-ca-trust extract',
+    log_and_call(f'sudo cp {clusterdir}/ca.crt /etc/pki/ca-trust/source/anchors ; sudo update-ca-trust extract',
          shell=True)
     pprint("Updating disconnected registry")
     synccmd = f"oc adm release mirror -a {pull_secret} --from={get_release_image()} "
     synccmd += f"--to-release-image={disconnected_url}/openshift/release-images:{tag}-{arch} "
     synccmd += f"--to={disconnected_url}/openshift/release"
     pprint(f"Running {synccmd}")
-    call(synccmd, shell=True)
+    log_and_call(synccmd, shell=True)
     extra_releases = data.get('disconnected_extra_releases', [])
     if len(extra_releases) > 0:
         pprint("Mirroring extra releases")
@@ -183,7 +188,7 @@ def update_disconnected_registry(config, plandir, cluster, data):
             synccmd += f"--to-release-image={disconnected_url}/openshift/release-images:{tag_and_arch} "
             synccmd += f"--to={disconnected_url}/openshift/release"
             pprint(f"Running {synccmd}")
-            call(synccmd, shell=True)
+            log_and_call(synccmd, shell=True)
     if which('oc-mirror') is None:
         get_oc_mirror(version=version, tag=tag)
     else:
@@ -207,7 +212,7 @@ def update_disconnected_registry(config, plandir, cluster, data):
     olmcmd = f"oc-mirror --ignore-history --config {clusterdir}/mirror-config.yaml docker://{disconnected_url}"
     olmcmd = ' || '.join([olmcmd for x in range(3)])
     pprint(f"Running {olmcmd}")
-    call(olmcmd, shell=True)
+    log_and_call(olmcmd, shell=True)
     mapping_to_icsp(config, plandir, f"{clusterdir}", f"{clusterdir}/mirror-config.yaml")
     for catalogsource in glob("oc-mirror-workspace/results-*/catalogSource*.yaml"):
         pprint(f"Injecting catalogsource {catalogsource}")
@@ -260,7 +265,7 @@ def update_openshift_etc_hosts(cluster, domain, host_ip, ingress_ip=None):
             wronglines.extend(wrongingresses)
         for wrong in wronglines:
             warning(f"Cleaning wrong entry {wrong} in /etc/hosts")
-            call(f"sudo sed -i '/{wrong.strip()}/d' /etc/hosts", shell=True)
+            log_and_call(f"sudo sed -i '/{wrong.strip()}/d' /etc/hosts", shell=True)
         hosts = open("/etc/hosts").readlines()
         correct = [e for e in hosts if not e.startswith('#') and f"api.{cluster}.{domain}" in e and host_ip in e]
         if not correct:
@@ -270,10 +275,10 @@ def update_openshift_etc_hosts(cluster, domain, host_ip, ingress_ip=None):
             if ingress_ip is None:
                 entries.extend(ingress_entries)
             entries = ' '.join(entries)
-            call(f"sudo sh -c 'echo {host_ip} {entries} >> /etc/hosts'", shell=True)
+            log_and_call(f"sudo sh -c 'echo {host_ip} {entries} >> /etc/hosts'", shell=True)
             if ingress_ip is not None:
                 entries = ' '.join(ingress_entries)
-                call(f"sudo sh -c 'echo {ingress_ip} {entries} >> /etc/hosts'", shell=True)
+                log_and_call(f"sudo sh -c 'echo {ingress_ip} {entries} >> /etc/hosts'", shell=True)
     else:
         entries = [f"api.{cluster}.{domain}"]
         ingress_entries = [f"{x}.{cluster}.{domain}" for x in ['console-openshift-console.apps',
@@ -282,12 +287,12 @@ def update_openshift_etc_hosts(cluster, domain, host_ip, ingress_ip=None):
         if ingress_ip is None:
             entries.extend(ingress_entries)
         entries = ' '.join(entries)
-        call(f"sh -c 'echo {host_ip} {entries} >> /etc/hosts'", shell=True)
+        log_and_call(f"sh -c 'echo {host_ip} {entries} >> /etc/hosts'", shell=True)
         if os.path.exists('/etcdir/hosts'):
-            call(f"sh -c 'echo {host_ip} {entries} >> /etcdir/hosts'", shell=True)
+            log_and_call(f"sh -c 'echo {host_ip} {entries} >> /etcdir/hosts'", shell=True)
             if ingress_ip is not None:
                 entries = ' '.join(ingress_entries)
-                call(f"sh -c 'echo {ingress_ip} {entries} >> /etcdir/hosts'", shell=True)
+                log_and_call(f"sh -c 'echo {ingress_ip} {entries} >> /etcdir/hosts'", shell=True)
         else:
             warning("Make sure to have the following entry in your /etc/hosts")
             warning(f"{host_ip} {entries}")
@@ -373,7 +378,7 @@ def get_downstream_installer(version='stable', macosx=False, tag=None, debug=Fal
         cmd += "; chmod 700 openshift-baremetal-install"
         if debug:
             pprint(cmd)
-        return call(cmd, shell=True)
+        return log_and_call(cmd, shell=True)
     arch_map = {'aarch64': 'arm64', 's390x': 's390x'}
     arch = arch_map.get(os.uname().machine)
     repo = 'ocp-dev-preview' if version == 'dev-preview' else 'ocp'
@@ -409,7 +414,7 @@ def get_downstream_installer(version='stable', macosx=False, tag=None, debug=Fal
     cmd += "; chmod 700 openshift-install"
     if debug:
         pprint(cmd)
-    return call(cmd, shell=True)
+    return log_and_call(cmd, shell=True)
 
 
 def get_upstream_installer(tag, version='stable', debug=False):
@@ -428,7 +433,7 @@ def get_upstream_installer(tag, version='stable', debug=False):
     pprint(f'Downloading openshift-install {tag} in current directory')
     if debug:
         pprint(cmd)
-    return call(cmd, shell=True)
+    return log_and_call(cmd, shell=True)
 
 
 def get_ci_installer(pull_secret, tag=None, macosx=False, debug=False, nightly=False, baremetal=False):
@@ -464,7 +469,7 @@ def get_ci_installer(pull_secret, tag=None, macosx=False, debug=False, nightly=F
     cmd += f"; chmod 700 {binary}"
     if debug:
         pprint(cmd)
-    return call(cmd, shell=True)
+    return log_and_call(cmd, shell=True)
 
 
 def process_apps(config, clusterdir, apps, overrides):
@@ -505,7 +510,7 @@ def process_postscripts(clusterdir, postscripts):
     for script in postscripts:
         script_path = os.path.expanduser(script) if script.startswith('/') else f'{currentdir}/{script}'
         pprint(f"Running script {os.path.basename(script)}")
-        call(script_path, shell=True)
+        log_and_call(script_path, shell=True)
 
 
 def wait_for_ignition(cluster, domain, role='worker'):
@@ -540,7 +545,7 @@ def handle_baremetal_iso(config, plandir, cluster, overrides, baremetal_hosts=[]
     if baremetal_hosts:
         iso_pool_path = config.k.get_pool_path(iso_pool)
         chmodcmd = f"chmod 666 {iso_pool_path}/{cluster}-worker.iso"
-        call(chmodcmd, shell=True)
+        log_and_call(chmodcmd, shell=True)
         pprint("Creating httpd deployment to host iso for baremetal workers")
         timeout = 0
         while True:
@@ -550,7 +555,7 @@ def handle_baremetal_iso(config, plandir, cluster, overrides, baremetal_hosts=[]
                 error("Timeout waiting for httpd deployment to be up")
                 sys.exit(1)
             httpdcmd = f"oc create -f {plandir}/httpd.yaml"
-            call(httpdcmd, shell=True)
+            log_and_call(httpdcmd, shell=True)
             timeout += 5
             sleep(5)
         svcip_cmd = 'oc get node -o yaml'
@@ -559,12 +564,12 @@ def handle_baremetal_iso(config, plandir, cluster, overrides, baremetal_hosts=[]
         svcport = safe_load(log_and_popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
         podname = log_and_popen('oc -n default get pod -l app=httpd-kcli -o name').read().split('/')[1].strip()
         try:
-            call(f"oc wait -n default --for=condition=Ready pod/{podname}", shell=True)
+            log_and_call(f"oc wait -n default --for=condition=Ready pod/{podname}", shell=True)
         except Exception as e:
             error(f"Hit {e}")
             sys.exit(1)
         copycmd = f"oc -n default cp {iso_pool_path}/{cluster}-worker.iso {podname}:/var/www/html"
-        call(copycmd, shell=True)
+        log_and_call(copycmd, shell=True)
         return f'http://{svcip}:{svcport}/{cluster}-worker.iso'
 
 
@@ -577,14 +582,14 @@ def handle_baremetal_iso_sno(config, plandir, cluster, data, iso_pool=None):
     baremetal_web_port = data.get('baremetal_web_port', 80)
     iso_pool_path = config.k.get_pool_path(iso_pool)
     if baremetal_web:
-        call(f"sudo rm {baremetal_web_dir}/{cluster}-*.iso", shell=True)
-        call(f'sudo cp {iso_pool_path}/{cluster}-*.iso {baremetal_web_dir}', shell=True)
+        log_and_call(f"sudo rm {baremetal_web_dir}/{cluster}-*.iso", shell=True)
+        log_and_call(f'sudo cp {iso_pool_path}/{cluster}-*.iso {baremetal_web_dir}', shell=True)
         if baremetal_web_dir == '/var/www/html':
-            call(f"sudo chown apache:apache {baremetal_web_dir}/{cluster}-*.iso", shell=True)
+            log_and_call(f"sudo chown apache:apache {baremetal_web_dir}/{cluster}-*.iso", shell=True)
             if which('getenforce') is not None and log_and_popen('getenforce').read().strip() == 'Enforcing':
-                call(f"sudo restorecon -Frvv {baremetal_web_dir}/{cluster}-*.iso", shell=True)
+                log_and_call(f"sudo restorecon -Frvv {baremetal_web_dir}/{cluster}-*.iso", shell=True)
     else:
-        call(f"sudo chmod a+r {iso_pool_path}/{cluster}-*.iso", shell=True)
+        log_and_call(f"sudo chmod a+r {iso_pool_path}/{cluster}-*.iso", shell=True)
     nic = log_and_popen('ip r | grep default | cut -d" " -f5 | head -1').read().strip()
     ip_cmd = f"ip -o addr show {nic} | awk '{{print $4}}' | cut -d '/' -f 1 | head -1"
     host_ip = log_and_popen(ip_cmd).read().strip()
@@ -1209,7 +1214,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         f.write(installconfig)
     with open(f"{clusterdir}/install-config.yaml.bck", 'w') as f:
         f.write(installconfig)
-    run = call(f'openshift-install --dir={clusterdir} --log-level={log_level} create manifests', shell=True)
+    run = log_and_call(f'openshift-install --dir={clusterdir} --log-level={log_level} create manifests', shell=True)
     if run != 0:
         msg = "Leaving environment for debugging purposes. "
         msg += f"Delete it with kcli delete kube --yes {cluster}"
@@ -1218,10 +1223,10 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         prefix = safe_load(open(f'{clusterdir}/openshift/99_cloud-creds-secret.yaml'))['data']['azure_resource_prefix']
         new_prefix = b64encode(bytes(cluster, 'utf-8')).decode('utf-8')
         sedcmd = f'sed -i "s@{prefix}@{new_prefix}@" {clusterdir}/openshift/99_cloud-creds-secret.yaml'
-        call(sedcmd, shell=True)
+        log_and_call(sedcmd, shell=True)
         old_prefix = b64decode(bytes(prefix, 'utf-8')).decode('utf-8')
         sedcmd = f'sed -i "s@{old_prefix}@{cluster}@" {clusterdir}/openshift/* {clusterdir}/manifests/*'
-        call(sedcmd, shell=True)
+        log_and_call(sedcmd, shell=True)
     for f in glob(f"{clusterdir}/openshift/99_openshift-cluster-api_master-machines-*.yaml"):
         os.remove(f)
     for f in glob(f"{clusterdir}/openshift/99_openshift-cluster-api_worker-machineset-*"):
@@ -1272,7 +1277,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
             calico_script = config.process_inputfile('xxx', f'{plandir}/calico.sh.j2', overrides=calico_data)
             with open(f"{tmpdir}/calico.sh", 'w') as f:
                 f.write(calico_script)
-            call(f'bash {tmpdir}/calico.sh', shell=True)
+            log_and_call(f'bash {tmpdir}/calico.sh', shell=True)
     elif network_type == 'Cilium':
         cilium_version = data['cilium_version']
         cluster_network_ipv4 = data['cluster_network_ipv4']
@@ -1280,7 +1285,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         cilium_script = config.process_inputfile('xxx', f'{plandir}/cilium.sh.j2', overrides=cilium_data)
         with open(f"{clusterdir}/cilium.sh", 'w') as f:
             f.write(cilium_script)
-        call(f'bash {clusterdir}/cilium.sh', shell=True)
+        log_and_call(f'bash {clusterdir}/cilium.sh', shell=True)
     if ipsec or ipsec_mode is not None or ovn_hostrouting or sno_relocate or mtu != 1400:
         valid_modes = ['Full', 'Disabled', 'External']
         if ipsec_mode is not None and ipsec_mode not in valid_modes:
@@ -1471,7 +1476,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
             with open(f"{clusterdir}/openshift/99-ingress-controller.yaml", 'w') as _f:
                 _f.write(ingress)
         pprint("Generating bootstrap-in-place ignition")
-        run = call(f'openshift-install --dir={clusterdir} --log-level={log_level} create single-node-ignition-config',
+        run = log_and_call(f'openshift-install --dir={clusterdir} --log-level={log_level} create single-node-ignition-config',
                    shell=True)
         if run != 0:
             return {'result': 'failure', 'reason': "Hit issue when generating bootstrap-in-place ignition"}
@@ -1582,7 +1587,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
             installcommand = f'openshift-install --dir={clusterdir} --log-level={log_level} wait-for install-complete'
             installcommand = ' || '.join([installcommand for x in range(retries)])
             pprint("Launching install-complete step. It will be retried extra times in case of timeouts")
-            run = call(installcommand, shell=True)
+            run = log_and_call(installcommand, shell=True)
             if run != 0:
                 msg = "Leaving environment for debugging purposes. "
                 msg += f"Delete it with kcli delete cluster --yes {cluster}"
@@ -1612,7 +1617,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
                                                   overrides=autoscale_overrides)
         with open(f"{clusterdir}/openshift/99-autoscale.yaml", 'w') as f:
             f.write(autoscale_data)
-    run = call(f'openshift-install --dir={clusterdir} --log-level={log_level} create ignition-configs', shell=True)
+    run = log_and_call(f'openshift-install --dir={clusterdir} --log-level={log_level} create ignition-configs', shell=True)
     if run != 0:
         msg = "Hit issues when generating ignition-config files"
         msg += ". Leaving environment for debugging purposes, "
@@ -1687,7 +1692,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
                 pprint("Gathering bootstrap private ip")
                 sleep(10)
             sedcmd = f'sed -i "s@api-int.{cluster}.{domain}@{api_ip}@" {clusterdir}/ctlplane.ign'
-            call(sedcmd, shell=True)
+            log_and_call(sedcmd, shell=True)
         pprint("Deploying ctlplanes")
         threaded = data['threaded'] or data['ctlplanes_threaded']
         result = config.plan(plan, inputfile=f'{plandir}/cloud_ctlplanes.yml', overrides=overrides, threaded=threaded)
@@ -1700,7 +1705,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
                 pprint("Gathering first ctlplane bootstrap ip")
                 sleep(10)
             sedcmd = f'sed -i "s@api-int.{cluster}.{domain}@{first_ctlplane_ip}@" {clusterdir}/worker.ign'
-            call(sedcmd, shell=True)
+            log_and_call(sedcmd, shell=True)
         result = config.plan(plan, inputfile=f'{plandir}/cloud_lb_api.yml', overrides=overrides)
         if result['result'] != 'success':
             return result
@@ -1711,7 +1716,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
     if not kubevirt_ignore_node_port and kubevirt_api_service and kubevirt_api_service_node_port:
         nodeport = k.get_node_ports(f'{cluster}-api', k.namespace)[6443]
         sedcmd = f'sed -i "s@:6443@:{nodeport}@" {clusterdir}/auth/kubeconfig'
-        call(sedcmd, shell=True)
+        log_and_call(sedcmd, shell=True)
         while True:
             nodehost = k.info(f"{cluster}-bootstrap").get('host')
             if nodehost is not None:
@@ -1727,7 +1732,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
     if not async_install:
         bootstrapcommand = f'openshift-install --dir={clusterdir} --log-level={log_level} wait-for bootstrap-complete'
         bootstrapcommand = ' || '.join([bootstrapcommand for x in range(retries)])
-        run = call(bootstrapcommand, shell=True)
+        run = log_and_call(bootstrapcommand, shell=True)
         if run != 0:
             msg = "Leaving environment for debugging purposes. "
             msg += f"Delete it with kcli delete cluster --yes {cluster}"
@@ -1776,7 +1781,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         installcommand = f'openshift-install --dir={clusterdir} --log-level={log_level} wait-for install-complete'
         installcommand += f" || {installcommand}"
         pprint("Launching install-complete step. It will be retried one extra time in case of timeouts")
-        run = call(installcommand, shell=True)
+        run = log_and_call(installcommand, shell=True)
         if run != 0:
             msg = "Leaving environment for debugging purposes. "
             msg += f"Delete it with kcli delete cluster --yes {cluster}"
@@ -1791,7 +1796,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
             pprint("Creating secret for aws-load-balancer-operator")
             lbcmd = "oc create secret generic aws-load-balancer-operator -n openshift-operators "
             lbcmd += f"--from-file=credentials={os.path.expanduser('~/.aws/credentials')}"
-            call(lbcmd, shell=True)
+            log_and_call(lbcmd, shell=True)
             if 'aws-load-balancer-operator' not in apps:
                 apps.append('aws-load-balancer-operator')
     if original_domain is not None:
@@ -1817,6 +1822,6 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
             patch_ipv6 = config.process_inputfile('xxx', f'{plandir}/patch_ipv6.json', overrides=data)
             with open(f"{tmpdir}/patch_ipv6.json", 'w') as f:
                 f.write(patch_ipv6)
-            call(f"oc patch network.config.openshift.io cluster --type=json --patch-file {tmpdir}/patch_ipv6.json",
+            log_and_call(f"oc patch network.config.openshift.io cluster --type=json --patch-file {tmpdir}/patch_ipv6.json",
                  shell=True)
     return {'result': 'success'}

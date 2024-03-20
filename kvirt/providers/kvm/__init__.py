@@ -43,6 +43,11 @@ def log_and_system(command):
     print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
     return os.system(command)
 
+def log_and_call(*args, **kwargs):
+    print(f"KCLI Executing call: \"{' '.join(args)}\" with {', '.join(['%s=%s' % (key, value) for key, value in kwargs.items()])}")  # or use logging instead of print
+    return call(*args, **kwargs)
+
+
 
 from tempfile import mkdtemp
 
@@ -2188,10 +2193,10 @@ class Kvirt(object):
                     break
             if found:
                 pprint("Deleting host entry. sudo password might be asked")
-                call(f"sudo sed -i '/{hostentry}/d' /etc/hosts", shell=True)
+                log_and_call(f"sudo sed -i '/{hostentry}/d' /etc/hosts", shell=True)
                 if bridged and self.host in ['localhost', '127.0.0.1']:
                     try:
-                        call("sudo /usr/bin/systemctl restart dnsmasq", shell=True)
+                        log_and_call("sudo /usr/bin/systemctl restart dnsmasq", shell=True)
                     except:
                         pass
             if remotednsmasq and bridged and self.protocol == 'ssh' and self.host not in ['localhost', '127.0.0.1']:
@@ -2202,14 +2207,14 @@ class Kvirt(object):
                                                            deletecmd)
                 pprint("Checking if a remote host entry exists. sudo password for remote user %s might be asked"
                        % self.user)
-                call(deletecmd, shell=True)
+                log_and_call(deletecmd, shell=True)
                 try:
                     dnsmasqcmd = "/usr/bin/systemctl restart dnsmasq"
                     if self.user != 'root':
                         dnsmasqcmd = f"sudo {dnsmasqcmd}"
                     dnsmasqcmd = "ssh %s -p %s %s@%s \"%s\"" % (self.identitycommand, self.port, self.user, self.host,
                                                                 dnsmasqcmd)
-                    call(dnsmasqcmd, shell=True)
+                    log_and_call(dnsmasqcmd, shell=True)
                 except:
                     pass
         if ignition:
@@ -2218,7 +2223,7 @@ class Kvirt(object):
                 ignitiondeletecmd = f"ls {ignitionpath} >/dev/null 2>&1 && rm -f {ignitionpath}"
                 ignitiondeletecmd = "ssh %s -p %s %s@%s \"%s\"" % (self.identitycommand, self.port, self.user,
                                                                    self.host, ignitiondeletecmd)
-                call(ignitiondeletecmd, shell=True)
+                log_and_call(ignitiondeletecmd, shell=True)
             elif os.path.exists(ignitionpath):
                 os.remove(ignitionpath)
         return {'result': 'success'}
@@ -3248,7 +3253,7 @@ class Kvirt(object):
             downloadcmd = 'ssh %s -p %s %s@%s "curl -C - -Lko %s/%s -f \'%s\'"' % (self.identitycommand, self.port,
                                                                                    self.user, host, downloadpath,
                                                                                    full_name, url)
-        code = call(downloadcmd, shell=True)
+        code = log_and_call(downloadcmd, shell=True)
         if code == 23:
             pprint("Consider running the following command on the hypervisor:")
             setfacluser = self.user
@@ -3811,19 +3816,19 @@ class Kvirt(object):
             hostscmd = f"sh -c 'echo {hosts} >>{hostsfile}'"
             if getuser() != 'root':
                 hostscmd = f"sudo {hostscmd}"
-            call(hostscmd, shell=True)
+            log_and_call(hostscmd, shell=True)
         elif self.protocol != 'ssh' or self.host in ['localhost', '127.0.0.1']:
             return
         else:
             hostscmd = "sudo sh -c 'echo %s >>%s'" % (hosts.replace('"', '\\"'), hostsfile)
             hostscmd = f"ssh {self.identitycommand} -p {self.port} {self.user}@{self.host} \"{hostscmd}\""
-            call(hostscmd, shell=True)
+            log_and_call(hostscmd, shell=True)
             dnsmasqcmd = "/usr/bin/systemctl restart dnsmasq"
             if self.user != 'root':
                 dnsmasqcmd = f"sudo {dnsmasqcmd}"
             dnsmasqcmd = "ssh %s -p %s %s@%s \"%s\"" % (self.identitycommand, self.port, self.user, self.host,
                                                         dnsmasqcmd)
-            call(dnsmasqcmd, shell=True)
+            log_and_call(dnsmasqcmd, shell=True)
 
     def delete_dns(self, name, domain, allentries=False):
         conn = self.conn

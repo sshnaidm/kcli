@@ -43,6 +43,11 @@ def log_and_system(command):
     return os.system(command)
 
 
+def log_and_call(*args, **kwargs):
+    print(f"KCLI Executing call: \"{' '.join(args)}\" with {', '.join(['%s=%s' % (key, value) for key, value in kwargs.items()])}")  # or use logging instead of print
+    return call(*args, **kwargs)
+
+
 def handle_parameters(parameters, paramfiles, cluster=False):
     if paramfiles is None:
         paramfiles = []
@@ -398,7 +403,7 @@ def delete_vm(args):
                         for node in nodes:
                             if node.split('.')[0] == name:
                                 pprint(f"Deleting node {node} from your {kubetype} cluster")
-                                call(f'{binary} delete node {node}', shell=True)
+                                log_and_call(f'{binary} delete node {node}', shell=True)
                                 break
             for confpool in config.confpools:
                 ip_reservations = config.confpools[confpool].get('ip_reservations', {})

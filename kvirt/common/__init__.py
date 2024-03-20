@@ -43,7 +43,7 @@ def log_and_system(command):
 
 
 def log_and_call(*args, **kwargs):
-    print(f"KCLI Executing call: {args} {kwargs}")  # or use logging instead of print
+    print(f"KCLI Executing call: \"{' '.join(args)}\" with {', '.join(['%s=%s' % (key, value) for key, value in kwargs.items()])}")  # or use logging instead of print
     return call(*args, **kwargs)
 
 

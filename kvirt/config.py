@@ -50,6 +50,11 @@ def log_and_system(command):
     return os.system(command)
 
 
+def log_and_call(*args, **kwargs):
+    print(f"KCLI Executing call: \"{' '.join(args)}\" with {', '.join(['%s=%s' % (key, value) for key, value in kwargs.items()])}")  # or use logging instead of print
+    return call(*args, **kwargs)
+
+
 from tempfile import mkdtemp
 
 class TemporaryDirectory:
@@ -2906,18 +2911,18 @@ class Kconfig(Kbaseconfig):
         if hypershift:
             kubeconfigmgmt = f"{clusterdir}/kubeconfig.mgmt"
             if os.path.exists(f'{clusterdir}/bmcs.yml'):
-                call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/bmcs.yml', shell=True)
-            call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/autoapprovercron.yml', shell=True)
-            call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/nodepool.yaml', shell=True)
-            call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/hostedcluster.yaml', shell=True)
+                log_and_call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/bmcs.yml', shell=True)
+            log_and_call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/autoapprovercron.yml', shell=True)
+            log_and_call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/nodepool.yaml', shell=True)
+            log_and_call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/hostedcluster.yaml', shell=True)
             if os.path.exists(f'{clusterdir}/assisted_infra.yml'):
-                call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/assisted_infra.yml', shell=True)
+                log_and_call(f'KUBECONFIG={kubeconfigmgmt} oc delete -f {clusterdir}/assisted_infra.yml', shell=True)
             if not assisted and ('baremetal_iso' in clusterdata or 'baremetal_hosts' in clusterdata):
-                call(f'KUBECONFIG={kubeconfigmgmt} oc -n default delete all -l app=httpd-kcli', shell=True)
-                call(f'KUBECONFIG={kubeconfigmgmt} oc -n default delete pvc httpd-kcli-pvc', shell=True)
+                log_and_call(f'KUBECONFIG={kubeconfigmgmt} oc -n default delete all -l app=httpd-kcli', shell=True)
+                log_and_call(f'KUBECONFIG={kubeconfigmgmt} oc -n default delete pvc httpd-kcli-pvc', shell=True)
             ingress_ip = clusterdata.get('ingress_ip')
             if self.type == 'kubevirt' and clusterdata.get('platform') is None and ingress_ip is None:
-                call(f'KUBECONFIG={kubeconfigmgmt} oc -n {k.namespace} delete route {cluster}-ingress', shell=True)
+                log_and_call(f'KUBECONFIG={kubeconfigmgmt} oc -n {k.namespace} delete route {cluster}-ingress', shell=True)
         if gke:
             gcpclient = None
             if 'client' in clusterdata:
@@ -3080,7 +3085,7 @@ class Kconfig(Kbaseconfig):
                     for node in nodes:
                         if node.split('.')[0] == vmname:
                             pprint(f"Deleting node {node} from your cluster")
-                            call(f'{binary} delete node {node}', shell=True)
+                            log_and_call(f'{binary} delete node {node}', shell=True)
                             break
                     self.k.delete(vmname)
 

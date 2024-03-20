@@ -36,6 +36,11 @@ def log_and_system(command):
     return os.system(command)
 
 
+def log_and_call(*args, **kwargs):
+    print(f"KCLI Executing call: \"{' '.join(args)}\" with {', '.join(['%s=%s' % (key, value) for key, value in kwargs.items()])}")  # or use logging instead of print
+    return call(*args, **kwargs)
+
+
 from tempfile import mkdtemp
 
 class TemporaryDirectory:
@@ -1424,7 +1429,7 @@ class Kbaseconfig:
                     os.chmod(script, 0o700)
                     pprint(f"Running script {script} locally")
                     command = f'bash {script}' if script.endswith('.sh') else f'./{script}'
-                    result = call(command, shell=True)
+                    result = log_and_call(command, shell=True)
                     if result != 0:
                         msg = f"Failure in script {script}"
                         error(msg)
@@ -1493,7 +1498,7 @@ class Kbaseconfig:
                     _f.write(kcliconf)
                 if secure:
                     sshcmd = f"ssh-keygen -t rsa -N '' -f {orissh}/id_rsa > /dev/null"
-                    call(sshcmd, shell=True)
+                    log_and_call(sshcmd, shell=True)
                     authorized_keys_file = os.path.expanduser('~/.ssh/authorized_keys')
                     file_mode = 'a' if os.path.exists(authorized_keys_file) else 'w'
                     with open(authorized_keys_file, file_mode) as f:
@@ -1524,20 +1529,20 @@ class Kbaseconfig:
                 desx = f"{dest}/99-kcli-conf-cm.yaml"
                 cmcmd = f'KUBECONFIG={plandir}/fake_kubeconfig.json '
                 cmcmd += f"{kubectl} create cm kcli-conf --from-file={oriconf} --dry-run=client -o yaml > {desx}"
-                call(cmcmd, shell=True)
+                log_and_call(cmcmd, shell=True)
                 desx = f"{dest}/99-kcli-ssh-cm.yaml"
                 cmcmd = f'KUBECONFIG={plandir}/fake_kubeconfig.json  '
                 cmcmd += f"{kubectl} create cm kcli-ssh --from-file={orissh} --dry-run=client -o yaml > {desx}"
-                call(cmcmd, shell=True)
+                log_and_call(cmcmd, shell=True)
             else:
                 cmcmd = f"{kubectl} create ns kcli-infra --dry-run=client -o yaml | {kubectl} apply -f -"
-                call(cmcmd, shell=True)
+                log_and_call(cmcmd, shell=True)
                 cmcmd = f"{kubectl} get cm kcli-conf >/dev/null 2>&1 && {kubectl} delete cm kcli-conf ; "
                 cmcmd += f"{kubectl} create cm kcli-conf --from-file={oriconf}"
-                call(cmcmd, shell=True)
+                log_and_call(cmcmd, shell=True)
                 cmcmd = f"{kubectl} get cm kcli-ssh >/dev/null 2>&1 && {kubectl} delete cm kcli-ssh ; "
                 cmcmd += f"{kubectl} create cm kcli-ssh --from-file={orissh}"
-                call(cmcmd, shell=True)
+                log_and_call(cmcmd, shell=True)
         return {'result': 'success'}
 
     def deploy_ksushy_service(self, port=9000, ssl=False, ipv6=False, user=None, password=None, bootonce=False):
@@ -1556,7 +1561,7 @@ class Kbaseconfig:
         with open("/usr/lib/systemd/system/ksushy.service", "w") as f:
             f.write(sushydata)
         cmd = "systemctl restart ksushy" if update else "systemctl enable --now ksushy"
-        call(cmd, shell=True)
+        log_and_call(cmd, shell=True)
 
     def deploy_web_service(self, port=8000, ssl=False, ipv6=False):
         update = os.path.exists("/usr/lib/systemd/system/kweb.service")
@@ -1567,7 +1572,7 @@ class Kbaseconfig:
         with open("/usr/lib/systemd/system/kweb.service", "w") as f:
             f.write(webdata)
         cmd = "systemctl restart kweb" if update else "systemctl enable --now kweb"
-        call(cmd, shell=True)
+        log_and_call(cmd, shell=True)
 
     def get_vip_from_confpool(self, cluster, confpool, overrides):
         if confpool not in self.confpools:

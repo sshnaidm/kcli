@@ -26,6 +26,11 @@ def log_and_popen(command):
     return os.popen(command)
 
 
+def log_and_call(*args, **kwargs):
+    print(f"KCLI Executing call: \"{' '.join(args)}\" with {', '.join(['%s=%s' % (key, value) for key, value in kwargs.items()])}")  # or use logging instead of print
+    return call(*args, **kwargs)
+
+
 from tempfile import mkdtemp
 
 class TemporaryDirectory:
@@ -155,12 +160,12 @@ def create_bmh_objects(config, plandir, cluster, namespace, baremetal_hosts, ove
                 nmstatedata += config.process_inputfile(cluster, f'{plandir}/nmstateconfig.yml.j2', overrides=host_data)
                 nmstatedata += '---\n'
     bmccmd = f"oc create -f {clusterdir}/bmcs.yml"
-    call(bmccmd, shell=True)
+    log_and_call(bmccmd, shell=True)
     if nmstatedata != '':
         with open(f"{clusterdir}/nmstateconfig.yml", 'w') as f:
             f.write(nmstatedata)
         nmcmd = f"oc create -f {clusterdir}/nmstateconfig.yml"
-        call(nmcmd, shell=True)
+        log_and_call(nmcmd, shell=True)
 
 
 def handle_baremetal_iso(config, plandir, cluster, data, baremetal_hosts=[]):
@@ -177,22 +182,22 @@ def handle_baremetal_iso(config, plandir, cluster, data, baremetal_hosts=[]):
     if baremetal_hosts:
         iso_pool_path = config.k.get_pool_path(iso_pool)
         chmodcmd = f"chmod 666 {iso_pool_path}/{cluster}-worker.iso"
-        call(chmodcmd, shell=True)
+        log_and_call(chmodcmd, shell=True)
         pprint("Creating httpd deployment to host iso for baremetal workers")
         httpdcmd = f"oc create -f {plandir}/httpd.yaml"
-        call(httpdcmd, shell=True)
+        log_and_call(httpdcmd, shell=True)
         svcip_cmd = 'oc get node -o yaml'
         svcip = safe_load(log_and_popen(svcip_cmd).read())['items'][0]['status']['addresses'][0]['address']
         svcport_cmd = 'oc get svc -n default httpd-kcli-svc -o yaml'
         svcport = safe_load(log_and_popen(svcport_cmd).read())['spec']['ports'][0]['nodePort']
         podname = log_and_popen('oc -n default get pod -l app=httpd-kcli -o name').read().split('/')[1].strip()
         try:
-            call(f"oc wait -n default --for=condition=Ready pod/{podname}", shell=True)
+            log_and_call(f"oc wait -n default --for=condition=Ready pod/{podname}", shell=True)
         except Exception as e:
             error(f"Hit {e}")
             sys.exit(1)
         copycmd = f"oc -n default cp {iso_pool_path}/{cluster}-worker.iso {podname}:/var/www/html"
-        call(copycmd, shell=True)
+        log_and_call(copycmd, shell=True)
         return f'http://{svcip}:{svcport}/{cluster}-worker.iso'
 
 
@@ -225,7 +230,7 @@ def scale(config, plandir, cluster, overrides):
         ignitionscript = config.process_inputfile(cluster, f"{plandir}/ignition.sh", overrides=overrides)
         with open(f"{clusterdir}/ignition.sh", 'w') as f:
             f.write(ignitionscript)
-        call(f'bash {clusterdir}/ignition.sh', shell=True)
+        log_and_call(f'bash {clusterdir}/ignition.sh', shell=True)
     if storedparameters and os.path.exists(f"{clusterdir}/kcli_parameters.yml"):
         with open(f"{clusterdir}/kcli_parameters.yml", 'r') as install:
             installparam = safe_load(install)
@@ -243,7 +248,7 @@ def scale(config, plandir, cluster, overrides):
         # kubeconfig = data['kubeconfig']
         # os.environ['KUBECONFIG'] = kubeconfig
         cmcmd = f"oc -n {namespace}-{cluster} scale nodepool {cluster} --replicas {workers}"
-        call(cmcmd, shell=True)
+        log_and_call(cmcmd, shell=True)
         return {'result': 'success'}
     os.chdir(os.path.expanduser("~/.kcli"))
     old_baremetal_hosts = installparam.get('baremetal_hosts', [])
@@ -253,7 +258,7 @@ def scale(config, plandir, cluster, overrides):
         if assisted:
             create_bmh_objects(config, plandir, cluster, namespace, baremetal_hosts, overrides)
             cmcmd = f"oc -n {namespace}-{cluster} scale nodepool {cluster} --replicas {workers}"
-            call(cmcmd, shell=True)
+            log_and_call(cmcmd, shell=True)
             return {'result': 'success'}
         else:
             if not old_baremetal_hosts:
@@ -375,11 +380,11 @@ def create(config, plandir, cluster, overrides):
             return {'result': 'failure', 'reason': msg}
         else:
             hypercmd = f"podman pull {data['operator_image']}"
-            call(hypercmd, shell=True)
+            log_and_call(hypercmd, shell=True)
             hypercmd = "podman run -it --rm --security-opt label=disable --entrypoint=/usr/bin/hypershift "
             hypercmd += f"-e KUBECONFIG=/k/{kubeconfig} -v {kubeconfigdir}:/k {data['operator_image']} install"
             hypercmd += f" --hypershift-image {data['operator_image']}"
-            call(hypercmd, shell=True)
+            log_and_call(hypercmd, shell=True)
             sleep(120)
     if safe_load(log_and_popen(hosted_crd_cmd).read()) is None:
         msg = "Couldnt install hypershift properly"
@@ -408,7 +413,7 @@ def create(config, plandir, cluster, overrides):
         disconnectedfile = config.process_inputfile(cluster, f"{plandir}/disconnected.sh", overrides=disconnected_data)
         with open(f"{clusterdir}/disconnected.sh", 'w') as f:
             f.write(disconnectedfile)
-        call(f'bash {clusterdir}/disconnected.sh', shell=True)
+        log_and_call(f'bash {clusterdir}/disconnected.sh', shell=True)
         os.environ['OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE'] = management_image
         cacmd = "oc -n openshift-config get cm user-ca-bundle -o jsonpath='{.data.ca-bundle\\.crt}'"
         data['ca'] = log_and_popen(cacmd).read().strip()
@@ -484,7 +489,7 @@ def create(config, plandir, cluster, overrides):
                 cmcmd = "oc patch ingresscontroller -n openshift-ingress-operator default --type=json -p "
                 cmcmd += "'[{ \"op\": \"add\", \"path\": \"/spec/routeAdmission\", "
                 cmcmd += "\"value\": {wildcardPolicy: \"WildcardsAllowed\"}}]'"
-                call(cmcmd, shell=True)
+                log_and_call(cmcmd, shell=True)
             except:
                 warning("Couldnt patch ingresscontroller to support wildcards. Assuming it's configured properly")
             if not kubevirt:
@@ -497,7 +502,7 @@ def create(config, plandir, cluster, overrides):
                     hostname = f"http.apps.{cluster}.{management_ingress_domain}"
                     route_cmd = f"oc -n {k.namespace} create route passthrough --service={cluster}-ingress "
                     route_cmd += f"--hostname={hostname} --wildcard-policy=Subdomain --port=443"
-                    call(route_cmd, shell=True)
+                    log_and_call(route_cmd, shell=True)
                 elif ingress_ip is None:
                     msg = f"Couldnt gather an ingress_ip from network {network}"
                     return {'result': 'failure', 'reason': msg}
@@ -529,7 +534,7 @@ def create(config, plandir, cluster, overrides):
     data['ipv6'] = ipv6
     pprint("Creating control plane assets")
     cmcmd = f"oc create ns {namespace} -o yaml --dry-run=client | oc apply -f -"
-    call(cmcmd, shell=True)
+    log_and_call(cmcmd, shell=True)
     icsps = safe_load(log_and_popen('oc get imagecontentsourcepolicies -o yaml').read())['items']
     if not fake_disconnected and icsps:
         imagecontentsources = []
@@ -659,7 +664,7 @@ def create(config, plandir, cluster, overrides):
         with open(f"{clusterdir}/assisted_infra.yml", 'w') as f:
             f.write(assistedfile)
         cmcmd = f"oc create -f {clusterdir}/assisted_infra.yml"
-        call(cmcmd, shell=True)
+        log_and_call(cmcmd, shell=True)
     if 'OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE' in os.environ:
         assetsdata['hosted_image'] = os.environ['OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE']
     else:
@@ -670,7 +675,7 @@ def create(config, plandir, cluster, overrides):
     with open(f"{clusterdir}/hostedcluster.yaml", 'w') as f:
         f.write(hostedclusterfile)
     cmcmd = f"oc create -f {clusterdir}/hostedcluster.yaml"
-    call(cmcmd, shell=True)
+    log_and_call(cmcmd, shell=True)
     which_openshift = which('openshift-install')
     openshift_dir = os.path.dirname(which_openshift) if which_openshift is not None else '.'
     if not same_release_images(version=version, tag=tag, pull_secret=pull_secret, path=openshift_dir):
@@ -717,7 +722,7 @@ def create(config, plandir, cluster, overrides):
             agents = 2
         pprint(f"Waiting for {agents} agents to appear")
         agent_ns = f"{namespace}-{cluster}"
-        call(f'until [ "$(oc -n {agent_ns} get agent -o name | wc -l | xargs)" -eq "{agents}" ] ; do sleep 1 ; done',
+        log_and_call(f'until [ "$(oc -n {agent_ns} get agent -o name | wc -l | xargs)" -eq "{agents}" ] ; do sleep 1 ; done',
              shell=True)
         pprint("Waiting 2mn to avoid race conditions when creating nodepool")
         sleep(120)
@@ -773,7 +778,7 @@ def create(config, plandir, cluster, overrides):
     with open(f"{clusterdir}/nodepool.yaml", 'w') as f:
         f.write(nodepoolfile)
     cmcmd = f"oc create -f {clusterdir}/nodepool.yaml"
-    call(cmcmd, shell=True)
+    log_and_call(cmcmd, shell=True)
     assetsdata['clusterdir'] = clusterdir
     if platform is None:
         ignitionscript = config.process_inputfile(cluster, f"{plandir}/ignition.sh", overrides=assetsdata)
@@ -781,7 +786,7 @@ def create(config, plandir, cluster, overrides):
             f.write(ignitionscript)
         pprint("Waiting before ignition data is available")
         user_data = f"user-data-{cluster}"
-        call(f"until oc -n {namespace}-{cluster} get secret | grep {user_data} >/dev/null 2>&1 ; do sleep 1 ; done",
+        log_and_call(f"until oc -n {namespace}-{cluster} get secret | grep {user_data} >/dev/null 2>&1 ; do sleep 1 ; done",
              shell=True)
         ignition_worker = f"{clusterdir}/nodepool.ign"
         timeout = 0
@@ -794,14 +799,14 @@ def create(config, plandir, cluster, overrides):
                 if timeout > 300:
                     msg = "Timeout trying to retrieve worker ignition"
                     return {'result': 'failure', 'reason': msg}
-            call(f'bash {clusterdir}/ignition.sh', shell=True)
+            log_and_call(f'bash {clusterdir}/ignition.sh', shell=True)
     if 'name' in data:
         del data['name']
     autoapproverpath = f'{clusterdir}/autoapprovercron.yml'
     autoapprover = config.process_inputfile(cluster, f"{plandir}/autoapprovercron.yml", overrides=data)
     with open(autoapproverpath, 'w') as f:
         f.write(autoapprover)
-    call(f"oc apply -f {autoapproverpath}", shell=True)
+    log_and_call(f"oc apply -f {autoapproverpath}", shell=True)
     if platform is None:
         if provider in cloud_providers + ['openstack']:
             copy2(f"{clusterdir}/nodepool.ign", f"{clusterdir}/nodepool.ign.ori")
@@ -818,14 +823,14 @@ def create(config, plandir, cluster, overrides):
             start_baremetal_hosts(baremetal_hosts, iso_url, overrides=overrides, debug=config.debug)
             data['workers'] = data.get('workers', 2) - len(baremetal_hosts)
     pprint("Waiting for kubeconfig to be available")
-    call(f"until oc -n {namespace} get secret {cluster}-admin-kubeconfig >/dev/null 2>&1 ; do sleep 1 ; done",
+    log_and_call(f"until oc -n {namespace} get secret {cluster}-admin-kubeconfig >/dev/null 2>&1 ; do sleep 1 ; done",
          shell=True)
     kubeconfigpath = f'{clusterdir}/auth/kubeconfig'
     kubeconfig = log_and_popen(f"oc extract -n {namespace} secret/{cluster}-admin-kubeconfig --to=-").read()
     with open(kubeconfigpath, 'w') as f:
         f.write(kubeconfig)
     pprint("Waiting for kubeadmin-password to be available")
-    call(f"until oc -n {namespace} get secret {cluster}-kubeadmin-password >/dev/null 2>&1 ; do sleep 1 ; done",
+    log_and_call(f"until oc -n {namespace} get secret {cluster}-kubeadmin-password >/dev/null 2>&1 ; do sleep 1 ; done",
          shell=True)
     kubeadminpath = f'{clusterdir}/auth/kubeadmin-password'
     kubeadmin = log_and_popen(f"oc extract -n {namespace} secret/{cluster}-kubeadmin-password --to=-").read()
@@ -839,7 +844,7 @@ def create(config, plandir, cluster, overrides):
             calico_script = config.process_inputfile('xxx', f'{plandir}/calico.sh.j2', overrides=calico_data)
             with open(f"{tmpdir}/calico.sh", 'w') as f:
                 f.write(calico_script)
-            call(f'bash {tmpdir}/calico.sh', shell=True)
+            log_and_call(f'bash {tmpdir}/calico.sh', shell=True)
     elif network_type == 'Cilium':
         cilium_version = data['cilium_version']
         cluster_network_ipv4 = data['cluster_network_ipv4']
@@ -847,7 +852,7 @@ def create(config, plandir, cluster, overrides):
         cilium_script = config.process_inputfile('xxx', f'{plandir}/cilium.sh.j2', overrides=cilium_data)
         with open(f"{clusterdir}/cilium.sh", 'w') as f:
             f.write(cilium_script)
-        call(f'bash {clusterdir}/cilium.sh', shell=True)
+        log_and_call(f'bash {clusterdir}/cilium.sh', shell=True)
     if platform is None and data['workers'] > 0:
         pprint("Deploying workers")
         worker_threaded = data.get('threaded', False) or data.get('workers_threaded', False)
@@ -869,7 +874,7 @@ def create(config, plandir, cluster, overrides):
         installcommand = f'openshift-install --dir={clusterdir} --log-level={log_level} wait-for install-complete'
         installcommand = ' || '.join([installcommand for x in range(retries)])
         pprint("Launching install-complete step. It will be retried extra times to handle timeouts")
-        run = call(installcommand, shell=True)
+        run = log_and_call(installcommand, shell=True)
         if run != 0:
             msg = "Leaving environment for debugging purposes. "
             msg += f"Delete it with kcli delete kube --yes {cluster}"
@@ -893,9 +898,9 @@ def create(config, plandir, cluster, overrides):
             temp.write(autoscale_data)
             temp.seek(0)
             scc_cmd = "oc adm policy add-scc-to-user anyuid -z default -n kcli-infra"
-            call(scc_cmd, shell=True)
+            log_and_call(scc_cmd, shell=True)
             autoscale_cmd = f"oc create -f {temp.name}"
-            call(autoscale_cmd, shell=True)
+            log_and_call(autoscale_cmd, shell=True)
     if provider in cloud_providers and data.get('cloud_storage', True):
         pprint("Deploying cloud storage class")
         deploy_cloud_storage(config, cluster, apply=False)
