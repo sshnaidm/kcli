@@ -16,6 +16,12 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from uuid import UUID
 
+
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 DOMAIN = "kubevirt.io"
 CDIDOMAIN = "cdi.kubevirt.io"
 CDIVERSION = "v1beta1"
@@ -645,10 +651,10 @@ class Kubevirt(Kubecommon):
         nccmd += f"{kubectl} exec -n {namespace} {podname} -- /bin/sh -c "
         nccmd += f"'nc -l {localport} --sh-exec \"nc -U /var/run/kubevirt-private/{uid}/virt-vnc\"'"
         nccmd += " &"
-        os.system(nccmd)
+        log_and_system(nccmd)
         forwardcmd = f'KUBECONFIG={self.kubeconfig_file} ' if self.kubeconfig_file is not None else ''
         forwardcmd += f"{kubectl} port-forward {podname} {localport}:{localport} &"
-        os.system(forwardcmd)
+        log_and_system(forwardcmd)
         time.sleep(5)
         if web:
             return f"vnc://127.0.0.1:{localport}"
@@ -664,7 +670,7 @@ class Kubevirt(Kubecommon):
             msg = f"Run the following command:\n{consolecommand}" if not self.debug else consolecommand
             pprint(msg)
         else:
-            os.system(consolecommand)
+            log_and_system(consolecommand)
         return
 
     def serialconsole(self, name, web=False):
@@ -689,7 +695,7 @@ class Kubevirt(Kubecommon):
                                                                                                           uid)
         if web:
             return nccmd
-        os.system(nccmd)
+        log_and_system(nccmd)
         return
 
     def dnsinfo(self, name):

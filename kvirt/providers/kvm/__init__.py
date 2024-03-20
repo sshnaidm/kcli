@@ -39,6 +39,12 @@ def log_and_popen(command):
     return os.popen(command)
 
 
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
+
 LIBVIRT_CMD_NONE = 0
 LIBVIRT_CMD_MODIFY = 1
 LIBVIRT_CMD_DELETE = 2
@@ -536,7 +542,7 @@ class Kvirt(object):
                 if self.protocol == 'ssh' and self.host not in ['localhost', '127.0.0.1']:
                     isocheckcmd = 'ssh %s -p %s %s@%s "ls %s >/dev/null 2>&1"' % (self.identitycommand, self.port,
                                                                                   self.user, self.host, iso)
-                    code = os.system(isocheckcmd)
+                    code = log_and_system(isocheckcmd)
                     if code != 0:
                         if start:
                             return {'result': 'failure', 'reason': f"Iso {iso} not found"}
@@ -807,7 +813,7 @@ class Kvirt(object):
                                                                                               self.port, ignitiondir,
                                                                                               name, self.user,
                                                                                               self.host)
-                    code = os.system(ignitioncmd1)
+                    code = log_and_system(ignitioncmd1)
                     if code != 0:
                         msg = "Unable to create ignition data file in /var/lib/libvirt/images"
                         return {'result': 'failure', 'reason': msg}
@@ -1110,7 +1116,7 @@ class Kvirt(object):
                 elif self.protocol == 'ssh':
                     foldercmd = 'ssh %s -p %s %s@%s "test -d %s || (%s)"' % (self.identitycommand, self.port,
                                                                              self.user, self.host, folder, foldercmd)
-                    code = os.system(foldercmd)
+                    code = log_and_system(foldercmd)
         kernelxml = ""
         if kernel is not None:
             existing_kernel = os.path.basename(kernel) in [os.path.basename(v) for v in self.volumes()]
@@ -1123,7 +1129,7 @@ class Kvirt(object):
             elif self.protocol == 'ssh':
                 locationcmd = 'ssh %s -p %s %s@%s "mkdir %s"' % (self.identitycommand, self.port, self.user,
                                                                  self.host, locationdir)
-                code = os.system(locationcmd)
+                code = log_and_system(locationcmd)
             else:
                 return {'result': 'failure', 'reason': "Couldn't create dir to hold kernel and initrd"}
             if kernel.startswith('http') or kernel.startswith('ftp'):
@@ -1142,8 +1148,8 @@ class Kvirt(object):
                                                                                                self.port, self.user,
                                                                                                self.host, locationdir,
                                                                                                initrd)
-                    code = os.system(kernelcmd)
-                    code = os.system(initrdcmd)
+                    code = log_and_system(kernelcmd)
+                    code = log_and_system(initrdcmd)
                 else:
                     try:
                         location = urlopen(kernel).readlines()
@@ -1164,7 +1170,7 @@ class Kvirt(object):
                                                                                                 self.port, self.user,
                                                                                                 self.host, initrd,
                                                                                                 initrdurl)
-                                code = os.system(initrdcmd)
+                                code = log_and_system(initrdcmd)
                     kernelurl = f'{kernel}/vmlinuz'
                     kernel = f"{locationdir}/vmlinuz"
                     if self.host == 'localhost' or self.host == '127.0.0.1':
@@ -1173,7 +1179,7 @@ class Kvirt(object):
                         kernelcmd = 'ssh %s -p %s %s@%s "curl -Lo %s -f \'%s\'"' % (self.identitycommand,
                                                                                     self.port, self.user, self.host,
                                                                                     kernel, kernelurl)
-                    code = os.system(kernelcmd)
+                    code = log_and_system(kernelcmd)
             elif initrd is None:
                 return {'result': 'failure', 'reason': "Missing initrd"}
             warning("kernel and initrd will only be available during first boot")
@@ -1374,17 +1380,17 @@ class Kvirt(object):
                 virtcmd = 'virt-customize'
                 cmd = f"sudo {virtcmd} -a {firstdisk} --run-command 'grubby --update-kernel=ALL --args={cmdline}'"
             if os.path.exists("/i_am_a_container") and which(virtcmd) is None:
-                os.system('apt-get install -y libguestfs-tools')
-                os.system(cmd.replace('sudo ', ''))
+                log_and_system('apt-get install -y libguestfs-tools')
+                log_and_system(cmd.replace('sudo ', ''))
             elif self.host == 'localhost' or self.host == '127.0.0.1':
                 if which(virtcmd) is not None:
-                    os.system(cmd)
+                    log_and_system(cmd)
                 else:
                     warning(f"{virtcmd} missing from PATH. cmdline won't be injected")
             elif self.protocol == 'ssh':
                 cmd = cmd.replace("'", "\'")
                 cmd = f'ssh {self.identitycommand} -p {self.port} {self.user}@{self.host} "{cmd}"'
-                os.system(cmd)
+                log_and_system(cmd)
         xml = vm.XMLDesc(0)
         vmxml = ET.fromstring(xml)
         self._reserve_ip(name, domain, vmxml, nets, primary=reserveip, networks=allnetworks)
@@ -1728,14 +1734,14 @@ class Kvirt(object):
                     msg = f"Run the following command:\n{serialcommand}" if not self.debug else serialcommand
                     pprint(msg)
                 else:
-                    os.system(serialcommand)
+                    log_and_system(serialcommand)
             elif self.host in ['localhost', '127.0.0.1']:
                 cmd = f'virsh -c {self.url} console {name}'
                 if self.debug or os.path.exists("/i_am_a_container"):
                     msg = f"Run the following command:\n{cmd}"
                     pprint(msg)
                 else:
-                    os.system(cmd)
+                    log_and_system(cmd)
             else:
                 error("No serial Console port found. Leaving...")
                 return
@@ -2154,7 +2160,7 @@ class Kvirt(object):
                 if networktype == 'bridge':
                     bridged = True
         if ip is not None:
-            os.system(f"ssh-keygen -q -R {ip} >/dev/null 2>&1")
+            log_and_system(f"ssh-keygen -q -R {ip} >/dev/null 2>&1")
             # delete hosts entry
             found = False
             hostentry = f"{ip} {name}.* # KVIRT"
@@ -3098,18 +3104,18 @@ class Kvirt(object):
                     cmd3 = 'ssh %s -p %s -t %s@%s "%s"' % (self.identitycommand, self.port, self.user, self.host,
                                                            setfacl)
 
-                return1 = os.system(cmd1)
+                return1 = log_and_system(cmd1)
                 if return1 > 0:
                     reason = f"Couldn't create directory {poolpath}.Leaving..."
                     error(reason)
                     return {'result': 'failure', 'reason': reason}
-                return2 = os.system(cmd2)
+                return2 = log_and_system(cmd2)
                 if return2 > 0:
                     reason = f"Couldn't change permission of directory {poolpath} to qemu"
                     error(reason)
                     return {'result': 'failure', 'reason': reason}
                 if self.user != 'root':
-                    return3 = os.system(cmd3)
+                    return3 = log_and_system(cmd3)
                     if return3 > 0:
                         reason = f"Couldn't run setfacl for user {self.user} in {poolpath}"
                         error(reason)
@@ -3244,33 +3250,33 @@ class Kvirt(object):
             if self.host == 'localhost' or self.host == '127.0.0.1':
                 if which(executable) is not None:
                     uncompresscmd = f"{executable} {flag} {poolpath}/{full_name}"
-                    os.system(uncompresscmd)
+                    log_and_system(uncompresscmd)
                 else:
                     error(f"{executable} not found. Can't uncompress image")
                     return {'result': 'failure', 'reason': f"{executable} not found. Can't uncompress image"}
             elif self.protocol == 'ssh':
                 uncompresscmd = 'ssh %s -p %s %s@%s "%s %s %s/%s"' % (self.identitycommand, self.port, self.user,
                                                                       self.host, executable, flag, poolpath, full_name)
-                os.system(uncompresscmd)
+                log_and_system(uncompresscmd)
         if cmd is not None:
             if self.host == 'localhost' or self.host == '127.0.0.1':
                 if which('virt-customize') is not None:
                     cmd = f"virt-customize -a {poolpath}/{name} --run-command '{cmd}'"
-                    os.system(cmd)
+                    log_and_system(cmd)
             elif self.protocol == 'ssh':
                 cmd = 'ssh %s -p %s %s@%s "virt-customize -a %s/%s --run-command \'%s\'"' % (self.identitycommand,
                                                                                              self.port, self.user,
                                                                                              self.host, poolpath,
                                                                                              name, cmd)
-                os.system(cmd)
+                log_and_system(cmd)
         if convert:
             name = name.replace('.raw', '')
             cmd = f"qemu-img convert -O qcow2 {poolpath}/{name}.raw {poolpath}/{name}"
             if self.host == 'localhost' or self.host == '127.0.0.1':
-                os.system(cmd)
+                log_and_system(cmd)
             elif self.protocol == 'ssh':
                 cmd = 'ssh %s -p %s %s@%s "%s"' % (self.identitycommand, self.port, self.user, self.host, cmd)
-                os.system(cmd)
+                log_and_system(cmd)
         if pooltype in ['logical', 'zfs']:
             product = list(root.iter('product'))
             if product:
@@ -3310,7 +3316,7 @@ class Kvirt(object):
             if self.protocol == 'ssh' and self.host not in ['localhost', '127.0.0.1']:
                 bridgescmd = 'ssh %s -p %s %s@%s "%s"' % (self.identitycommand, self.port, self.user, self.host,
                                                           bridgescmd)
-            os.system(bridgescmd)
+            log_and_system(bridgescmd)
             portgroupxml = "<portgroup name='default' default='yes'/>"
             if 'vlans' in overrides and isinstance(overrides['vlans'], list) and overrides['vlans']:
                 for vlan in overrides['vlans']:
@@ -3697,7 +3703,7 @@ class Kvirt(object):
         command = f"qemu-img create -q -f qcow2 -b {backing} -F qcow2 {path}"
         if self.protocol == 'ssh':
             command = "ssh %s -p %s %s@%s \"%s\"" % (self.identitycommand, self.port, self.user, self.host, command)
-        os.system(command)
+        log_and_system(command)
 
     def add_image_to_deadpool(self, poolname, pooltype, poolpath, shortimage, thinpool=None):
         sizecommand = f"qemu-img info /tmp/{shortimage} --output=json"
@@ -3721,7 +3727,7 @@ class Kvirt(object):
         command += f"; rm -rf /tmp/{shortimage}"
         if self.protocol == 'ssh':
             command = f"ssh {self.identitycommand} -p {self.port} {self.user}@{self.host} \"{command}\""
-        os.system(command)
+        log_and_system(command)
 
     def _createthinlvm(self, name, path, thinpool, backing=None, size=None):
         if backing is not None:
@@ -3730,13 +3736,13 @@ class Kvirt(object):
             command = f"lvcreate -qq -V {size}G -T {path}/{thinpool} -n {name}"
         if self.protocol == 'ssh':
             command = f"ssh {self.identitycommand} -p {self.port} {self.user}@{self.host} \"{command}\""
-        os.system(command)
+        log_and_system(command)
 
     def _deletelvm(self, disk):
         command = f"lvremove -qqy {disk}"
         if self.protocol == 'ssh':
             command = f"ssh {self.identitycommand} -p {self.port} {self.user}@{self.host} \"{command}\""
-        os.system(command)
+        log_and_system(command)
 
     def export(self, name, image=None):
         newname = image if image is not None else "image-%s" % name

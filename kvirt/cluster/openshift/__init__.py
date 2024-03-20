@@ -29,6 +29,12 @@ def log_and_popen(command):
     return os.popen(command)
 
 
+
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 virt_providers = ['kvm', 'kubevirt', 'ovirt', 'openstack', 'vsphere', 'proxmox']
 cloud_providers = ['aws', 'azure', 'gcp', 'ibm']
 
@@ -1126,7 +1132,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
                          destination=destination, tunnel=config.tunnel, tunnelhost=config.tunnelhost,
                          tunnelport=config.tunnelport, tunneluser=config.tunneluser, download=True, insecure=True,
                          vmport=disconnected_vmport)
-            os.system(scpcmd)
+            log_and_system(scpcmd)
         if disconnected_operators:
             source = "/root/catalogSource-redhat-operator-index.yaml"
             destination = f"{clusterdir}/catalogSource-redhat.yaml"
@@ -1134,7 +1140,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
                          destination=destination, tunnel=config.tunnel, tunnelhost=config.tunnelhost,
                          tunnelport=config.tunnelport, tunneluser=config.tunneluser, download=True, insecure=True,
                          vmport=disconnected_vmport)
-            os.system(scpcmd)
+            log_and_system(scpcmd)
         if disconnected_certified_operators:
             source = "/root/catalogSource-certified-operator-index.yaml"
             destination = f"{clusterdir}/catalogSource-certified.yaml"
@@ -1142,7 +1148,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
                          destination=destination, tunnel=config.tunnel, tunnelhost=config.tunnelhost,
                          tunnelport=config.tunnelport, tunneluser=config.tunneluser, download=True, insecure=True,
                          vmport=disconnected_vmport)
-            os.system(scpcmd)
+            log_and_system(scpcmd)
         if disconnected_community_operators:
             source = "/root/catalogSource-community-operator-index.yaml"
             destination = f"{clusterdir}/catalogSource-community.yaml"
@@ -1150,7 +1156,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
                          destination=destination, tunnel=config.tunnel, tunnelhost=config.tunnelhost,
                          tunnelport=config.tunnelport, tunneluser=config.tunneluser, download=True, insecure=True,
                          vmport=disconnected_vmport)
-            os.system(scpcmd)
+            log_and_system(scpcmd)
         if disconnected_marketplace_operators:
             source = "/root/catalogSource-redhat-marketplace-index.yaml"
             destination = f"{clusterdir}/catalogSource-marketplace.yaml"
@@ -1158,7 +1164,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
                          destination=destination, tunnel=config.tunnel, tunnelhost=config.tunnelhost,
                          tunnelport=config.tunnelport, tunneluser=config.tunneluser, download=True, insecure=True,
                          vmport=disconnected_vmport)
-            os.system(scpcmd)
+            log_and_system(scpcmd)
         os.environ['OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE'] = disconnected_version
         pprint(f"Setting OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE to {disconnected_version}")
     if disconnected_url is not None:

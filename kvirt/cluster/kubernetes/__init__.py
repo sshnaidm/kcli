@@ -8,6 +8,12 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 class Kubernetes():
     def __init__(self, host='127.0.0.1', user='root', port=443, token=None, ca_file=None, context=None,
                  namespace='default', readwritemany=False, debug=False, insecure=False):
@@ -148,7 +154,7 @@ class Kubernetes():
 
     def console_container(self, name):
         command = "kubectl exec -it %s /bin/sh" % name
-        os.system(command)
+        log_and_system(command)
         return {'result': 'success'}
 
     def list_containers(self):

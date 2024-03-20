@@ -6,6 +6,11 @@ from kvirt.common import pprint, error
 from yaml import dump
 
 
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 def play(k, name, playbook, variables=[], verbose=False, user=None, tunnel=False, tunnelhost=None, tunnelport=None,
          tunneluser=None, yamlinventory=False, insecure=True):
     """
@@ -70,7 +75,7 @@ def play(k, name, playbook, variables=[], verbose=False, user=None, tunnel=False
         else:
             f.write("%s\n" % inventory)
     pprint("Running: %s -T 20 -i %s %s" % (ansiblecommand, inventoryfile, playbook))
-    os.system("%s -T 20 -i %s %s" % (ansiblecommand, inventoryfile, playbook))
+    log_and_system("%s -T 20 -i %s %s" % (ansiblecommand, inventoryfile, playbook))
 
 
 def vm_inventory(k, name, user=None, yamlinventory=False):

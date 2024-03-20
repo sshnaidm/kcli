@@ -37,6 +37,12 @@ def log_and_popen(command):
     return os.popen(command)
 
 
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
+
 class NoAliasDumper(yaml.SafeDumper):
     def ignore_aliases(self, data):
         return True
@@ -740,7 +746,7 @@ def delete_lastvm(name, client):
     if os.path.exists(configdir) and os.path.exists(vmfile):
         deletecmd = "sed -i ''" if os.path.exists('/Users') and 'gnu' not in which('sed') else "sed -i"
         deletecmd += f" '/{client} {name}/d' {configdir}/vm"
-        os.system(deletecmd)
+        log_and_system(deletecmd)
 
 
 def remove_duplicates(oldlist):
@@ -1486,7 +1492,7 @@ def get_binary(name, linuxurl, macosurl, compressed=False):
         else:
             downloadcmd = f"curl -L '{url}' > {binary}"
         downloadcmd += f"; chmod u+x {binary}"
-        os.system(downloadcmd)
+        log_and_system(downloadcmd)
     return binary
 
 
@@ -1957,7 +1963,7 @@ def make_iso(name, tmpdir, userdata, metadata, netdata, openstack=False, combust
         else:
             isocmd += f" {tmpdir}/network-config"
     isocmd += f" >/dev/null 2>{tmpdir}/error.log"
-    return os.system(isocmd)
+    return log_and_system(isocmd)
 
 
 def filter_compression_extension(name):
@@ -1995,7 +2001,7 @@ def generate_rhcos_iso(k, cluster, pool, version='latest', installer=False, arch
         call(baseisocmd, shell=True)
         copy2('iso.ign', '/tmp')
         isocmd = create_embed_ignition_cmd(name, '/tmp', baseiso, extra_args=extra_args)
-        os.system(isocmd)
+        log_and_system(isocmd)
         result = k.add_image(f'/tmp/{name}', pool, name=name)
         os.remove(f'/tmp/{os.path.basename(liveiso)}')
         os.remove(f'/tmp/{name}')
@@ -2014,23 +2020,23 @@ def generate_rhcos_iso(k, cluster, pool, version='latest', installer=False, arch
     isocmd = create_embed_ignition_cmd(name, poolpath, baseiso, extra_args=extra_args)
     os.environ["PATH"] += f":{os.getcwd()}"
     if k.conn == 'fake':
-        os.system(isocmd)
+        log_and_system(isocmd)
     elif k.host in ['localhost', '127.0.0.1']:
         if which('podman') is None:
             error("podman is required in order to embed iso ignition")
             sys.exit(1)
         copy2('iso.ign', poolpath)
-        os.system(isocmd)
+        log_and_system(isocmd)
     elif k.protocol == 'ssh':
         warning("podman is required in the remote hypervisor in order to embed iso ignition")
         createbindircmd = f'ssh {k.identitycommand} -p {k.port} {k.user}@{k.host} "mkdir bin >/dev/null 2>&1"'
-        os.system(createbindircmd)
+        log_and_system(createbindircmd)
         scpbincmd = f'scp {k.identitycommand} -qP {k.port} coreos-installer {k.user}@{k.host}:bin'
-        os.system(scpbincmd)
+        log_and_system(scpbincmd)
         scpcmd = f'scp {k.identitycommand} -qP {k.port} iso.ign {k.user}@{k.host}:{poolpath}'
-        os.system(scpcmd)
+        log_and_system(scpcmd)
         isocmd = f'ssh {k.identitycommand} -p {k.port} {k.user}@{k.host} "PATH=/root/bin {isocmd}"'
-        os.system(isocmd)
+        log_and_system(isocmd)
 
 
 def olm_app(package):

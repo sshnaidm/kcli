@@ -5,6 +5,12 @@ from shutil import copyfile
 from yaml import safe_dump, safe_load
 
 
+
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 def valid_rhn_credentials(config, overrides):
     rhnuser = config.rhnuser or overrides.get('rhnuser')
     rhnpassword = config.rhnpassword or overrides.get('rhnpassword')
@@ -85,7 +91,7 @@ def create(config, plandir, cluster, overrides, dnsconfig=None):
         config.handle_finishfiles(name, finishfiles)
         ip = config.k.info(name).get('ip')
         destination = f"{clusterdir}/auth/kubeconfig.{index}"
-        os.system(f"sed -i -e 's/127.0.0.1/{ip}/' {destination}")
+        log_and_system(f"sed -i -e 's/127.0.0.1/{ip}/' {destination}")
         if index == 0:
             copyfile(f"{clusterdir}/auth/kubeconfig.0", f"{clusterdir}/auth/kubeconfig")
     success(f"Kubernetes cluster {cluster} deployed!!!")

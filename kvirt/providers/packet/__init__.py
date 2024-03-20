@@ -11,6 +11,12 @@ from time import sleep
 from urllib.request import urlopen, Request
 
 
+
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 class Kpacket(object):
     def __init__(self, auth_token, project=None, debug=False, facility=None, tunnelhost=None,
                  tunneluser='root', tunnelport=22, tunneldir='/var/www/html'):
@@ -146,7 +152,7 @@ class Kpacket(object):
                 pprint(f"Copying ignition data to {self.tunnelhost}")
                 scpcmd = "scp -qP %s /tmp/%s.ign %s@%s:%s/%s.ign" % (self.tunnelport, name, self.tunneluser,
                                                                      self.tunnelhost, self.tunneldir, name)
-                os.system(scpcmd)
+                log_and_system(scpcmd)
         if flavor is None:
             # if f[1] >= numcpus and f[2] >= memory:
             minmemory = 512000
@@ -332,7 +338,7 @@ class Kpacket(object):
             return sshcommand
         if self.debug:
             print(sshcommand)
-        os.system(sshcommand)
+        log_and_system(sshcommand)
         return
 
     def info(self, name, output='plain', fields=[], values=False, vm=None, debug=False):

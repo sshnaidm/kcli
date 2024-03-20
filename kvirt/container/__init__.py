@@ -4,6 +4,12 @@ import os
 from shutil import which
 
 
+
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 class Kcontainer():
     def __init__(self, host='127.0.0.1', user='root', port=22, engine='podman', debug=False, insecure=False):
         self.host = host
@@ -150,7 +156,7 @@ class Kcontainer():
                 runcommand = 'ssh -p %s %s@%s "%s"' % (self.port, self.user, self.host, runcommand)
             if self.debug:
                 print(runcommand)
-            os.system(runcommand)
+            log_and_system(runcommand)
         return {'result': 'success'}
 
     def delete_container(self, name):
@@ -164,7 +170,7 @@ class Kcontainer():
             rmcommand = "%s rm -f %s" % (engine, name)
             if self.host != '127.0.0.1':
                 rmcommand = "ssh -p %s %s@%s %s" % (self.port, self.user, self.host, rmcommand)
-            os.system(rmcommand)
+            log_and_system(rmcommand)
         return {'result': 'success'}
 
     def start_container(self, name):
@@ -178,7 +184,7 @@ class Kcontainer():
             startcommand = "%s start %s" % (engine, name)
             if self.host != '127.0.0.1':
                 startcommand = "ssh -p %s %s@%s %s" % (self.port, self.user, self.host, startcommand)
-            os.system(startcommand)
+            log_and_system(startcommand)
         return {'result': 'success'}
 
     def stop_container(self, name):
@@ -192,19 +198,19 @@ class Kcontainer():
             stopcommand = "%s stop %s" % (engine, name)
             if self.host != '127.0.0.1':
                 stopcommand = "ssh -p %s %s@%s %s" % (self.port, self.user, self.host, stopcommand)
-            os.system(stopcommand)
+            log_and_system(stopcommand)
         return {'result': 'success'}
 
     def console_container(self, name):
         engine = self.engine
         if self.containermode:
             attachcommand = "%s attach %s" % (engine, name)
-            os.system(attachcommand)
+            log_and_system(attachcommand)
         else:
             attachcommand = "%s attach %s" % (engine, name)
             if self.host != '127.0.0.1':
                 attachcommand = "ssh -t -p %s %s@%s %s" % (self.port, self.user, self.host, attachcommand)
-            os.system(attachcommand)
+            log_and_system(attachcommand)
         return {'result': 'success'}
 
     def list_containers(self):

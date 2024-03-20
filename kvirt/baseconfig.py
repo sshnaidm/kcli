@@ -31,6 +31,11 @@ def log_and_popen(command):
     return os.popen(command)
 
 
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 def other_client(profile, clients):
     for cli in clients:
         if profile.startswith(f"{cli}_"):
@@ -588,7 +593,7 @@ class Kbaseconfig:
             error('repo operations require git')
             sys.exit(1)
         else:
-            os.system(f"git clone {url} {repodir}")
+            log_and_system(f"git clone {url} {repodir}")
         if not os.path.exists(f"{repodir}/KMETA"):
             for root, dirs, files in os.walk(repodir):
                 for name in files:
@@ -608,7 +613,7 @@ class Kbaseconfig:
         else:
             os.chdir(repodir)
             if os.path.exists('.git'):
-                os.system("git pull --rebase")
+                log_and_system("git pull --rebase")
         return {'result': 'success'}
 
     def delete_repo(self, name):
@@ -1383,7 +1388,7 @@ class Kbaseconfig:
                 scpcmd = scp(hostname, ip=ip, user=user, source=tmpdir, destination=remotedir, download=False,
                              insecure=True, tunnel=tunnel, tunnelhost=tunnelhost, tunnelport=tunnelport,
                              tunneluser=tunneluser, vmport=vmport)
-                os.system(scpcmd)
+                log_and_system(scpcmd)
                 cmd = [f"cd {remotedir}"]
                 for script in finalscripts:
                     cmd.append(f'bash {script}' if script.endswith('.sh') else f'./{script}')
@@ -1392,7 +1397,7 @@ class Kbaseconfig:
                 pprint(f"Running script {script} on {hostname}")
                 sshcommand = ssh(hostname, ip=ip, user=user, cmd=cmd, tunnel=tunnel, tunnelhost=tunnelhost,
                                  tunnelport=tunnelport, tunneluser=tunneluser, vmport=vmport)
-                os.system(sshcommand)
+                log_and_system(sshcommand)
             else:
                 os.chdir(destdir)
                 for script in finalscripts:

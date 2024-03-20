@@ -38,6 +38,11 @@ def log_and_popen(command):
     return os.popen(command)
 
 
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 def handle_parameters(parameters, paramfiles, cluster=False):
     if paramfiles is None:
         paramfiles = []
@@ -375,7 +380,7 @@ def delete_vm(args):
                     sshcmd = ssh(name, ip=ip, user='root', tunnel=config.tunnel,
                                  tunnelhost=config.tunnelhost, tunnelport=config.tunnelport,
                                  tunneluser=config.tunneluser, insecure=True, cmd=cmd, vmport=vmport)
-                    os.system(sshcmd)
+                    log_and_system(sshcmd)
                 else:
                     warning(f"vm {name} doesnt appear as a rhel box. Skipping unregistration")
             match = re.match(r'(.*)-(ctlplane|worker)-[0-9]', name)
@@ -2769,7 +2774,7 @@ def ssh_vm(args):
                                 identityfile=identityfile)
     if sshcommand is not None:
         if which('ssh') is not None:
-            code = os.WEXITSTATUS(os.system(sshcommand))
+            code = os.WEXITSTATUS(log_and_system(sshcommand))
             sys.exit(code)
         else:
             print(sshcommand)
@@ -2830,7 +2835,7 @@ def scp_vm(args):
                                 identityfile=identityfile)
     if scpcommand is not None:
         if which('scp') is not None:
-            os.system(scpcommand)
+            log_and_system(scpcommand)
         else:
             print(scpcommand)
     else:

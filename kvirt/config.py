@@ -45,6 +45,11 @@ def log_and_popen(command):
     return os.popen(command)
 
 
+def log_and_system(command):
+    print(f"KCLI Executing sys command: {command}")  # or use logging instead of print
+    return os.system(command)
+
+
 cloudplatforms = ['aws', 'azure', 'gcp', 'packet', 'ibmcloud']
 
 
@@ -1506,7 +1511,7 @@ class Kconfig(Kbaseconfig):
                             sshcmd = ssh(name, ip=ip, user='root', tunnel=self.tunnel,
                                          tunnelhost=self.tunnelhost, tunnelport=self.tunnelport,
                                          tunneluser=self.tunneluser, insecure=True, cmd=cmd, vmport=vmport)
-                            os.system(sshcmd)
+                            log_and_system(sshcmd)
                     c.delete(name, snapshots=True)
                     if dnsclient is not None and domain is not None and dnsclient in self.clients:
                         if dnsclient in dnsclients:
@@ -2132,7 +2137,7 @@ class Kconfig(Kbaseconfig):
                 if sharedkey:
                     vmcounter += 1
                     if not os.path.exists(f"{plan}.key") or not os.path.exists(f"{plan}.key.pub"):
-                        os.system(f"ssh-keygen -qt rsa -N '' -f {plan}.key")
+                        log_and_system(f"ssh-keygen -qt rsa -N '' -f {plan}.key")
                     publickey = open(f"{plan}.key.pub").read().strip()
                     privatekey = open(f"{plan}.key").read().strip()
                     if 'keys' not in profile:
@@ -2311,7 +2316,7 @@ class Kconfig(Kbaseconfig):
                     ansiblecommand += f" --extra-vars @{varsfile}"
                 ansiblecommand += f" -i {inventoryfile} {playbook}"
                 pprint(f"Running: {ansiblecommand}")
-                os.system(ansiblecommand)
+                log_and_system(ansiblecommand)
         if ansible and not onlyassets:
             pprint("Deploying Ansible Inventory...")
             inventoryfile = f"/tmp/{plan}.inv.yaml" if self.yamlinventory else f"/tmp/{plan}.inv"
@@ -3217,7 +3222,7 @@ class Kconfig(Kbaseconfig):
             cmd = "cat /root/url.txt"
         sshcmd = ssh(name, ip=ip, user='root', tunnel=self.tunnel, tunnelhost=self.tunnelhost,
                      tunnelport=self.tunnelport, tunneluser=self.tunneluser, insecure=True, cmd=cmd, vmport=vmport)
-        os.system(sshcmd)
+        log_and_system(sshcmd)
 
     def handle_finishfiles(self, name, finishfiles, identityfile=None, vmclient=None):
         config = Kconfig(client=vmclient) if vmclient is not None else self
@@ -3235,7 +3240,7 @@ class Kconfig(Kbaseconfig):
             scpcmd = common.scp(name, ip=current_ip, user='root', source=source, destination=destination,
                                 tunnel=config.tunnel, tunnelhost=config.tunnelhost, tunnelport=config.tunnelport,
                                 tunneluser=self.tunneluser, download=True, insecure=True, identityfile=identityfile)
-            os.system(scpcmd)
+            log_and_system(scpcmd)
 
     def handle_notifications(self, name, notifymethods=[], pushbullettoken=None, notifyscript=None, notifycmd=None,
                              slackchannel=None, slacktoken=None, mailserver=None, mailfrom=None, mailto=None,
@@ -3439,7 +3444,7 @@ class Kconfig(Kbaseconfig):
                     scpcmd = scp(name, ip=ip, user='root', source=source, destination=destination, tunnel=self.tunnel,
                                  tunnelhost=self.tunnelhost, tunnelport=self.tunnelport, tunneluser=self.tunneluser,
                                  download=False, insecure=True, vmport=vmport)
-                    os.system(scpcmd)
+                    log_and_system(scpcmd)
                     updated_files.append(destination)
         return updated_files
 
