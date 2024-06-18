@@ -160,7 +160,7 @@ def get_version(args):
     update = 'N/A'
     if git_version != 'N/A':
         try:
-            response = json.loads(urlopen("https://api.github.com/repos/karmab/kcli/commits/main", timeout=5).read())
+            response = json.loads(urlopen("https://api.github.com/repos/cnf-ci/kcli/commits/main", timeout=5).read())
             upstream_version = response['sha'][:7]
             update = True if upstream_version != git_version else False
         except:

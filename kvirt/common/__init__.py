@@ -2222,7 +2222,7 @@ def compare_git_versions(commit1, commit2):
     date1, date2 = None, None
     mycwd = os.getcwd()
     with TemporaryDirectory() as tmpdir:
-        cmd = f"git clone -q https://github.com/karmab/kcli {tmpdir}"
+        cmd = f"git clone -q https://github.com/cnf-ci/kcli {tmpdir}"
         call(cmd, shell=True)
         os.chdir(tmpdir)
         timestamp1 = os.popen(f"git show -s --format=%ct {commit1}").read().strip()
@@ -2335,7 +2335,7 @@ def get_changelog(diff, data=False):
             error("No source commit available. Use kcli changelog diff1 diff2")
             sys.exit(1)
     with TemporaryDirectory() as tmpdir:
-        cmd = f"git clone -q https://github.com/karmab/kcli {tmpdir}"
+        cmd = f"git clone -q https://github.com/cnf-ci/kcli {tmpdir}"
         call(cmd, shell=True)
         os.chdir(tmpdir)
         cmd = f"git --no-pager log --decorate=no --oneline {ori}..{dest}"

@@ -32,7 +32,7 @@ setup(
     zip_safe=False,
     description=description,
     long_description=long_description,
-    url='http://github.com/karmab/kcli',
+    url='http://github.com/cnf-ci/kcli',
     author='Karim Boumedhel',
     author_email='karimboumedhel@gmail.com',
     license='ASL',
